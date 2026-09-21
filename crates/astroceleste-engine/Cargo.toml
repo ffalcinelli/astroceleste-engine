@@ -13,6 +13,7 @@ readme = "../../README.md"
 include = ["src/**/*.rs", "src/**/*.bin", "LICENSE-*", "NOTICE"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 
 [dev-dependencies]
-serde_json = { version = "1", features = ["float_roundtrip"] }

@@ -10,6 +10,8 @@ pub enum EngineError {
         coverage: Option<(f64, f64)>,
     },
     Ephemeris(SpkError),
+    /// Malformed caller input (e.g. a non-numeric orb).
+    InvalidInput(String),
 }
 
 impl EngineError {
@@ -18,6 +20,7 @@ impl EngineError {
         match self {
             EngineError::OutOfRange { .. } => "ephemeris_out_of_range",
             EngineError::Ephemeris(_) => "ephemeris_error",
+            EngineError::InvalidInput(_) => "invalid_input",
         }
     }
 }
@@ -36,6 +39,7 @@ impl fmt::Display for EngineError {
                 write!(f, "JD {jd:.1} cannot be computed: no ephemeris loaded")
             }
             EngineError::Ephemeris(err) => write!(f, "{err}"),
+            EngineError::InvalidInput(msg) => write!(f, "invalid input: {msg}"),
         }
     }
 }

@@ -35,21 +35,52 @@ fn reciprocal_mass(code: i32) -> f64 {
 /// Deflectors Skyfield's `apparent()` uses by default: Sun, Jupiter, Saturn.
 const DEFLECTORS: [i32; 3] = [10, 599, 699];
 
-/// A light-time corrected position of `target` seen from the geocenter.
+/// Where an observation is made from, at one instant.
+#[derive(Debug, Clone, Copy)]
+pub struct Observer {
+    /// Barycentric position (au) and velocity (au/day).
+    pub position: Vec3,
+    pub velocity: Vec3,
+    /// Position relative to the geocenter (au) for an observer on the Earth's surface;
+    /// enables the deflection of light by the Earth itself.
+    pub gcrs_position: Option<Vec3>,
+}
+
+impl Observer {
+    /// The Earth's center (Skyfield `earth.at(t)`).
+    pub fn geocenter(kernel: &Kernel, t: &Time) -> Result<Self, SpkError> {
+        let (position, velocity) = kernel.barycentric(EARTH, t)?;
+        Ok(Observer {
+            position,
+            velocity,
+            gcrs_position: None,
+        })
+    }
+}
+
+/// A light-time corrected position of `target` seen from an observer.
 #[derive(Debug, Clone)]
 pub struct Astrometric {
     /// Target relative to the observer, au (ICRS).
     pub position: Vec3,
     pub light_time: f64,
-    observer_position: Vec3,
-    observer_velocity: Vec3,
+    observer: Observer,
 }
 
 /// Skyfield `earth.at(t).observe(target)`.
 pub fn observe(kernel: &Kernel, target: i32, t: &Time) -> Result<Astrometric, SpkError> {
-    let (observer_position, observer_velocity) = kernel.barycentric(EARTH, t)?;
+    observe_from(kernel, &Observer::geocenter(kernel, t)?, target, t)
+}
+
+/// Skyfield `observer.observe(target)`: iterate the light-travel time.
+pub fn observe_from(
+    kernel: &Kernel,
+    observer: &Observer,
+    target: i32,
+    t: &Time,
+) -> Result<Astrometric, SpkError> {
     let (mut tposition, _) = kernel.barycentric(target, t)?;
-    let mut distance = length(&sub(&tposition, &observer_position));
+    let mut distance = length(&sub(&tposition, &observer.position));
     let mut light_time0 = 0.0;
     let mut converged = None;
     for _ in 0..10 {
@@ -60,24 +91,23 @@ pub fn observe(kernel: &Kernel, target: i32, t: &Time) -> Result<Astrometric, Sp
         }
         let t2 = Time::from_tdb(t.whole, t.tdb_fraction - light_time);
         tposition = kernel.barycentric(target, &t2)?.0;
-        distance = length(&sub(&tposition, &observer_position));
+        distance = length(&sub(&tposition, &observer.position));
         light_time0 = light_time;
     }
     let light_time =
         converged.ok_or_else(|| SpkError::Format("light-travel time failed to converge".into()))?;
     Ok(Astrometric {
-        position: sub(&tposition, &observer_position),
+        position: sub(&tposition, &observer.position),
         light_time,
-        observer_position,
-        observer_velocity,
+        observer: *observer,
     })
 }
 
-/// Skyfield `Astrometric.apparent()` for a geocentric observer: deflection by the Sun,
-/// Jupiter and Saturn, then aberration. Returns the apparent ICRS vector in au.
+/// Skyfield `Astrometric.apparent()`: deflection by the Sun, Jupiter and Saturn (and by
+/// the Earth for a surface observer), then aberration. Apparent ICRS vector in au.
 pub fn apparent(kernel: &Kernel, astrometric: &Astrometric, t: &Time) -> Result<Vec3, SpkError> {
     let mut target = astrometric.position;
-    let observer = astrometric.observer_position;
+    let observer = astrometric.observer.position;
     let tlt = length(&target) / C_AUDAY;
 
     for code in DEFLECTORS {
@@ -94,12 +124,35 @@ pub fn apparent(kernel: &Kernel, astrometric: &Astrometric, t: &Time) -> Result<
             target[k] += d[k];
         }
     }
+    if let Some(gcrs) = astrometric.observer.gcrs_position {
+        let d = deflection(&target, &gcrs, EARTH_RECIPROCAL_MASS);
+        if nadir_angle(&target, &gcrs) >= 0.8 {
+            for k in 0..3 {
+                target[k] += d[k];
+            }
+        }
+    }
     add_aberration(
         &mut target,
-        &astrometric.observer_velocity,
+        &astrometric.observer.velocity,
         astrometric.light_time,
     );
     Ok(target)
+}
+
+const EARTH_RECIPROCAL_MASS: f64 = 332946.050895;
+/// Earth's equatorial radius (IERS 2010), in au.
+const EARTH_RADIUS_AU: f64 = 6378136.6 / AU_M;
+
+/// Nadir angle of a target as a fraction of the Earth limb's apparent radius
+/// (Skyfield `compute_limb_angle`): below 1 the target is behind the Earth.
+fn nadir_angle(position: &Vec3, observer: &Vec3) -> f64 {
+    let disobj = dot(position, position).sqrt();
+    let disobs = dot(observer, observer).sqrt();
+    let aprad = (EARTH_RADIUS_AU / disobs).min(1.0).asin();
+    let coszd = (dot(position, observer) / (disobj * disobs)).clamp(-1.0, 1.0);
+    let zdobj = coszd.acos();
+    (std::f64::consts::PI - zdobj) / aprad
 }
 
 /// Observer position relative to the deflector when the light passed closest to it.

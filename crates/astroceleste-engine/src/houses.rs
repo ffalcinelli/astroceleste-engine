@@ -18,7 +18,7 @@ pub enum HouseSystem {
 impl HouseSystem {
     /// From the first letter of the code, like the reference: anything unknown is Placidus.
     pub fn from_code(code: &str) -> Self {
-        match code.trim().chars().next().map(|c| c.to_ascii_uppercase()) {
+        match code.chars().next().map(|c| c.to_ascii_uppercase()) {
             Some('W') => HouseSystem::WholeSign,
             Some('E') => HouseSystem::Equal,
             Some('O') => HouseSystem::Porphyry,

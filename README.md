@@ -6,11 +6,30 @@ It is the calculation core of [Astroceleste](https://astroceleste.it). The same 
 on the server (Python bindings), in the desktop and mobile apps (native) and in the browser
 (WASM), so every platform computes the same chart down to the arcsecond.
 
-> Status: early. Done and verified: the JPL SPK reader (against `jplephem`), the
-> reduction to apparent positions of date (against Skyfield, to 1e-7″), planets, lunar
-> nodes, Chiron, Lilith and house cusps (identical to the reference on all golden charts).
-> Being ported: aspects, fixed stars, lots, temperament, lunar data, horary, transits,
-> synastry and derived charts.
+> Status: the complete chart pipeline is ported and matches the reference implementation
+> on every golden chart: planets, lunar nodes, Chiron, Lilith, houses (Placidus, Whole Sign,
+> Equal, Porphyry), aspects and orbs, fixed stars, Arabic parts, temperament, lunar status,
+> horary charts (planetary hours from computed sunrise and sunset), transits, synastry and
+> derived charts. Next: Python and WASM bindings.
+
+## Usage
+
+```rust
+use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
+use astroceleste_engine::{calculate_chart, ChartRequest, UtcInstant};
+
+let mut kernels = KernelSet::new();
+kernels.push(Kernel::new("de440s.bsp", Spk::open("kernels/de440s.bsp")?)?);
+
+let request = ChartRequest::new(UtcInstant::parse("1987-05-17T14:30:00Z")?, 41.9, 12.5);
+let chart = calculate_chart(&kernels, &request)?;
+println!("{}", serde_json::to_string_pretty(&chart)?);
+```
+
+Charts serialize to the same JSON as the Astroceleste API. Other entry points:
+`calculate_horary_chart`, `calculate_transit_chart`, `calculate_synastry` and
+`calculate_derived_chart`. In the browser or on mobile, load the kernel from memory with
+`Spk::from_bytes`.
 
 ## Layout
 

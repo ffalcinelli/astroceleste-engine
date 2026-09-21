@@ -66,8 +66,15 @@ impl Time {
             whole,
             tt_fraction,
             tdb_fraction: tt_fraction + tdb_minus_tt(whole, tt_fraction) / DAY_S,
-            ut1_fraction: f64::NAN,
+            ut1_fraction: tt_fraction - delta_t().at(whole + tt_fraction) / DAY_S,
         }
+    }
+
+    /// From a single TT Julian date (Skyfield `Timescale.tt_jd(jd)`, which splits it
+    /// into whole days and a fraction).
+    pub fn from_tt_jd(jd_tt: f64) -> Self {
+        let (whole, fraction) = crate::pyfloat::divmod(jd_tt, 1.0);
+        Self::from_tt(whole, fraction)
     }
 
     /// From a TDB date split in two (Skyfield `Timescale.tdb_jd(whole, fraction)`).
