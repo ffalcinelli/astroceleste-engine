@@ -1,0 +1,34 @@
+astroceleste-engine
+Copyright (c) 2026 The astroceleste-engine contributors
+Licensed under MIT OR Apache-2.0.
+
+This software ports algorithms and data from Skyfield
+(https://github.com/skyfielders/python-skyfield), used under the MIT license:
+
+    Copyright © 2013–2018 Brandon Rhodes
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this
+    software and associated documentation files (the "Software"), to deal in the Software
+    without restriction, including without limitation the rights to use, copy, modify,
+    merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies
+    or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+    INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+    CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+    OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Ported parts: the ΔT model and its tables (src/time.rs, src/data/deltat.bin), IAU 2000A
+nutation and its coefficient tables (src/frames/nutation*.rs), IAU 2006 precession, frame
+bias and sidereal time (src/frames/), light-time, gravitational deflection and aberration
+(src/ephemeris/observe.rs).
+
+Ephemeris data: NASA JPL planetary ephemerides (DE440s and others) are public domain
+works of the U.S. Government, fetched at build/run time and not distributed here, except
+for a one-year DE440s excerpt used by the tests (tests/data/de440s_2000.bsp).

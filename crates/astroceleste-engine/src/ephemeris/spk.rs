@@ -285,20 +285,70 @@ impl Spk {
                 et,
             });
         }
-        if segment.data_type != 2 && segment.data_type != 3 {
-            return Err(SpkError::UnsupportedType(segment.data_type));
-        }
+        self.check_type(segment)?;
         let index = (((et - segment.init) / segment.interval).floor().max(0.0) as usize)
             .min(segment.record_count - 1);
-        let words = self.read_words(
+        let words = self.record(segment, index)?;
+        let (mid, radius) = (words[0], words[1]);
+        Ok(self.evaluate(segment, &words, (et - mid) / radius))
+    }
+
+    /// Evaluate one segment at a TDB Julian date given as `whole + fraction`, with the
+    /// same interval arithmetic as jplephem (which Skyfield uses), keeping the precision
+    /// of the split date.
+    pub fn segment_state_split(
+        &self,
+        segment: &Segment,
+        whole: f64,
+        fraction: f64,
+    ) -> Result<State, SpkError> {
+        self.check_type(segment)?;
+        let et = (whole - J2000_JD + fraction) * SECONDS_PER_DAY;
+        let out_of_range = SpkError::OutOfRange {
+            target: segment.target,
+            center: segment.center,
+            et,
+        };
+        let intlen = segment.interval;
+        let a = (whole - J2000_JD) * SECONDS_PER_DAY - segment.init;
+        let (index1, offset1) = (a.div_euclid(intlen), a.rem_euclid(intlen));
+        let b = fraction * SECONDS_PER_DAY;
+        let (index2, offset2) = (b.div_euclid(intlen), b.rem_euclid(intlen));
+        let c = offset1 + offset2;
+        let (index3, mut offset) = (c.div_euclid(intlen), c.rem_euclid(intlen));
+        let mut index = index1 + index2 + index3;
+        let count = segment.record_count as f64;
+        if index == count {
+            index -= 1.0;
+            offset += intlen;
+        }
+        if index < 0.0 || index >= count {
+            return Err(out_of_range);
+        }
+        let words = self.record(segment, index as usize)?;
+        Ok(self.evaluate(segment, &words, 2.0 * offset / intlen - 1.0))
+    }
+
+    fn check_type(&self, segment: &Segment) -> Result<(), SpkError> {
+        if segment.data_type == 2 || segment.data_type == 3 {
+            Ok(())
+        } else {
+            Err(SpkError::UnsupportedType(segment.data_type))
+        }
+    }
+
+    fn record(&self, segment: &Segment, index: usize) -> Result<Vec<f64>, SpkError> {
+        self.read_words(
             segment.start_word + index * segment.record_size,
             segment.record_size,
-        )?;
-        let (mid, radius) = (words[0], words[1]);
+        )
+    }
+
+    /// Position and velocity from one Chebyshev record at normalized time `s`.
+    fn evaluate(&self, segment: &Segment, words: &[f64], s: f64) -> State {
+        let radius = words[1];
         let n = (segment.record_size - 2) / segment.components();
         let coeffs = &words[2..];
-        let s = (et - mid) / radius;
-
         let mut position = [0.0; 3];
         let mut velocity = [0.0; 3];
         for axis in 0..3 {
@@ -314,7 +364,7 @@ impl Spk {
                 *v = chebyshev(c, s).0;
             }
         }
-        Ok((position, velocity))
+        (position, velocity)
     }
 
     fn read_words(&self, first_word: usize, count: usize) -> Result<Vec<f64>, SpkError> {

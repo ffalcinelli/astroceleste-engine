@@ -6,9 +6,11 @@ It is the calculation core of [Astroceleste](https://astroceleste.it). The same 
 on the server (Python bindings), in the desktop and mobile apps (native) and in the browser
 (WASM), so every platform computes the same chart down to the arcsecond.
 
-> Status: early. The JPL SPK reader is done and verified against `jplephem`. The chart
-> pipeline (apparent positions, houses, aspects, lots, fixed stars, lunar data, transits,
-> synastry, derived charts) is being ported against the golden fixtures in `tests/fixtures/`.
+> Status: early. Done and verified: the JPL SPK reader (against `jplephem`), the
+> reduction to apparent positions of date (against Skyfield, to 1e-7″), planets, lunar
+> nodes, Chiron, Lilith and house cusps (identical to the reference on all golden charts).
+> Being ported: aspects, fixed stars, lots, temperament, lunar data, horary, transits,
+> synastry and derived charts.
 
 ## Layout
 
@@ -19,6 +21,8 @@ on the server (Python bindings), in the desktop and mobile apps (native) and in 
 | `tests/data/de440s_2000.bsp` | one-year excerpt of DE440s used by the tests |
 | `scripts/fetch-kernels.sh` | downloads full JPL kernels into `kernels/` (gitignored) |
 | `scripts/make_spk_fixtures.py` | rebuilds the excerpt and the SPK reference states with `jplephem` |
+| `scripts/make_reduction_fixtures.py` | stage-by-stage reference values from Skyfield |
+| `scripts/gen_tables.py` | regenerates the embedded ΔT, nutation and Chiron tables |
 
 ## Development
 

@@ -10,9 +10,9 @@ license.workspace = true
 repository.workspace = true
 readme = "../../README.md"
 # Tests read fixtures and kernels from the repository root: ship only the library.
-include = ["src/**/*.rs", "src/**/*.bin", "LICENSE-*"]
+include = ["src/**/*.rs", "src/**/*.bin", "LICENSE-*", "NOTICE"]
 
 [dependencies]
 
 [dev-dependencies]
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
