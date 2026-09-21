@@ -4,3 +4,13 @@ git_release_enable = true
 git_tag_name = "v{{ version }}"
 # Versions follow the core crate; bindings crates join the same release train.
 dependencies_update = false
+
+# The bindings are released through PyPI and npm by release.yml, not crates.io; they
+# share the workspace version.
+[[package]]
+name = "astroceleste-engine-py"
+release = false
+
+[[package]]
+name = "astroceleste-engine-wasm"
+release = false

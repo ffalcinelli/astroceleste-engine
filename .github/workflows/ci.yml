@@ -62,7 +62,7 @@ jobs:
         include:
           # MSRV: keep in sync with rust-version in Cargo.toml.
           - os: ubuntu-latest
-            toolchain: "1.80"
+            toolchain: "1.85"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,7 +71,8 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: cargo test --workspace
+      # The Python extension is built and tested by maturin in the python job.
+      - run: cargo test --workspace --exclude astroceleste-engine-py
 
   full-kernel:
     # The committed excerpt covers one year; this runs the full-range and golden tests.
@@ -89,7 +90,7 @@ jobs:
           path: kernels
           key: jpl-kernels-de440s
       - run: scripts/fetch-kernels.sh
-      - run: cargo test --workspace --release
+      - run: cargo test --workspace --exclude astroceleste-engine-py --release
 
   targets:
     # Web (WASM) and mobile targets must keep compiling: the apps depend on them.
@@ -112,11 +113,66 @@ jobs:
           key: ${{ matrix.target }}
       - name: build
         if: matrix.target == 'wasm32-unknown-unknown'
-        run: cargo build --workspace --lib --target ${{ matrix.target }}
+        run: cargo build -p astroceleste-engine -p astroceleste-engine-wasm --lib --target ${{ matrix.target }}
       - name: check
         # Linking for mobile needs the NDK / Xcode; type-checking is what can break here.
         if: matrix.target != 'wasm32-unknown-unknown'
-        run: cargo check --workspace --lib --target ${{ matrix.target }}
+        run: cargo check -p astroceleste-engine --lib --target ${{ matrix.target }}
+
+  python:
+    name: python bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: kernels
+          key: jpl-kernels-de440s
+      - run: scripts/fetch-kernels.sh
+      - name: build and test the wheel
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install maturin==1.15.0 pytest
+          .venv/bin/maturin build --release -m crates/astroceleste-engine-py/Cargo.toml -o dist
+          .venv/bin/pip install dist/*.whl
+          .venv/bin/pytest -q crates/astroceleste-engine-py/tests
+
+  wasm:
+    name: wasm bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: wasm
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: kernels
+          key: jpl-kernels-de440s
+      - run: scripts/fetch-kernels.sh
+      - run: npm install --global wasm-pack@0.15.0
+      - run: wasm-pack build --release --target nodejs --out-dir pkg-node crates/astroceleste-engine-wasm
+      - run: node crates/astroceleste-engine-wasm/tests/golden.mjs
+      - name: build the web package
+        run: wasm-pack build --release --target web crates/astroceleste-engine-wasm
 
   deny:
     runs-on: ubuntu-latest

@@ -3,3 +3,7 @@
 *.bsp
 !/tests/data/*.bsp
 __pycache__/
+/crates/astroceleste-engine-wasm/pkg*/
+/dist/
+.venv/
+*.whl
