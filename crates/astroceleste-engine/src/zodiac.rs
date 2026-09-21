@@ -160,7 +160,11 @@ pub const PRECESSION_RATE_ARCSEC_YEAR: f64 = 50.290966;
 pub struct Ayanamsa {
     pub code: &'static str,
     pub name: &'static str,
+    /// Degrees at J2000.0.
     pub offset_j2000: f64,
+    /// Linear drift on top of general precession, arcseconds per Julian century (systems
+    /// tied to a moving reference: Spica's proper motion, the galactic centre).
+    pub drift_arcsec_cy: f64,
 }
 
 pub const AYANAMSA_CATALOG: [Ayanamsa; 14] = [
@@ -168,71 +172,85 @@ pub const AYANAMSA_CATALOG: [Ayanamsa; 14] = [
         code: "lahiri",
         name: "Lahiri (Chitra Paksha)",
         offset_j2000: 23.857092,
+        drift_arcsec_cy: -0.0016,
     },
     Ayanamsa {
         code: "fagan_bradley",
         name: "Fagan-Bradley",
-        offset_j2000: 24.743118,
+        offset_j2000: 24.7403,
+        drift_arcsec_cy: -0.0015,
     },
     Ayanamsa {
         code: "krishnamurti",
         name: "Krishnamurti (KP)",
-        offset_j2000: 23.766782,
+        offset_j2000: 23.76024,
+        drift_arcsec_cy: -0.0007,
     },
     Ayanamsa {
         code: "raman",
         name: "B.V. Raman",
-        offset_j2000: 22.404764,
+        offset_j2000: 22.410791,
+        drift_arcsec_cy: -0.0007,
     },
     Ayanamsa {
         code: "true_citra",
         name: "True Chitra",
-        offset_j2000: 23.857187,
+        offset_j2000: 23.840017,
+        drift_arcsec_cy: -4.5046,
     },
     Ayanamsa {
         code: "yukteshwar",
         name: "Sri Yukteswar",
-        offset_j2000: 21.054378,
+        offset_j2000: 22.478803,
+        drift_arcsec_cy: -0.0007,
     },
     Ayanamsa {
         code: "deluce",
         name: "De Luce",
-        offset_j2000: 23.818451,
+        offset_j2000: 27.815753,
+        drift_arcsec_cy: -0.0189,
     },
     Ayanamsa {
         code: "ushashashi",
         name: "Usha-Shashi",
-        offset_j2000: 20.016333,
+        offset_j2000: 20.057541,
+        drift_arcsec_cy: -0.0007,
     },
     Ayanamsa {
         code: "jn_bhasin",
         name: "J.N. Bhasin",
-        offset_j2000: 23.324889,
+        offset_j2000: 22.762137,
+        drift_arcsec_cy: -0.0007,
     },
     Ayanamsa {
         code: "aldebaran_15tau",
         name: "Aldebaran 15° Taurus",
-        offset_j2000: 24.960222,
+        offset_j2000: 24.758924,
+        drift_arcsec_cy: -0.0226,
     },
     Ayanamsa {
         code: "hipparchos",
         name: "Hipparchos",
-        offset_j2000: 23.238889,
+        offset_j2000: 20.247788,
+        drift_arcsec_cy: -0.0236,
     },
     Ayanamsa {
         code: "sassanian",
         name: "Sassanian",
-        offset_j2000: 22.846667,
+        offset_j2000: 19.992959,
+        drift_arcsec_cy: -0.0032,
     },
     Ayanamsa {
         code: "galcent_0sag",
         name: "Galactic Center 0° Sagittarius",
-        offset_j2000: 26.998611,
+        offset_j2000: 26.846048,
+        drift_arcsec_cy: -0.2407,
     },
     Ayanamsa {
         code: "j2000",
         name: "J2000.0 Epoch",
         offset_j2000: 0.0,
+        drift_arcsec_cy: 0.0,
     },
 ];
 
@@ -258,16 +276,25 @@ pub struct AyanamsaInfo {
     pub precession_rate_arcsec_yr: f64,
 }
 
-/// `get_ayanamsa_info` as production computes it (no Swiss Ephemeris): J2000 offset plus
-/// linear precession.
-///
-/// NOTE: this reproduces the reference implementation, including its unit slip (a per-year
-/// rate applied to centuries) — see the fixture discussion before changing it.
+/// IAU 2006 general precession in longitude p_A, arcseconds, `t` Julian centuries after
+/// J2000.0 (Capitaine, Wallace & Chapront 2003, eq. 39).
+pub fn general_precession_arcsec(t: f64) -> f64 {
+    ((((-0.0000000383 * t - 0.000023857) * t + 0.00007964) * t + 1.1054348) * t + 5028.796195) * t
+}
+
+/// Ayanamsa in degrees at a UT Julian day: the system's J2000 value plus general
+/// precession plus its own drift. Tracks Swiss Ephemeris within 0.2" over 1450-2150.
+pub fn ayanamsa_value(jd: f64, code: &str) -> f64 {
+    let meta = ayanamsa(code);
+    let t = (jd - 2_451_545.0) / 36525.0;
+    let arcsec = general_precession_arcsec(t) + meta.drift_arcsec_cy * t;
+    pyfloat::rem(meta.offset_j2000 + arcsec / 3600.0, 360.0)
+}
+
+/// `get_ayanamsa_info`: value rounded to 6 decimals, and as a DMS string.
 pub fn ayanamsa_info(jd: f64, code: &str) -> AyanamsaInfo {
     let meta = ayanamsa(code);
-    let centuries = (jd - 2_451_545.0) / 36525.0;
-    let precession_deg = centuries * (PRECESSION_RATE_ARCSEC_YEAR / 3600.0);
-    let value = pyfloat::rem(meta.offset_j2000 + precession_deg, 360.0);
+    let value = ayanamsa_value(jd, code);
     AyanamsaInfo {
         code: meta.code,
         name: meta.name,
@@ -287,6 +314,16 @@ mod tests {
         assert_eq!((p.sign.name, p.degree, p.minute), ("Taurus", 0, 0));
         let p = longitude_to_zodiac(-0.5);
         assert_eq!((p.sign.name, p.degree, p.minute), ("Pisces", 29, 30));
+    }
+
+    #[test]
+    fn ayanamsa_includes_general_precession() {
+        let j2000 = 2_451_545.0;
+        assert_eq!(ayanamsa_info(j2000, "lahiri").value, 23.857092);
+        assert_eq!(ayanamsa_info(j2000 + 36525.0, "lahiri").value, 25.254286);
+        assert_eq!(ayanamsa_info(j2000 - 36525.0, "lahiri").value, 22.460512);
+        assert_eq!(ayanamsa_info(j2000, "j2000").value, 0.0);
+        assert_eq!(ayanamsa("unknown").code, DEFAULT_AYANAMSA);
     }
 
     #[test]

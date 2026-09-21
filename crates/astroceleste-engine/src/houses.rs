@@ -78,9 +78,9 @@ pub fn calculate_houses(jd: f64, lat: f64, lon: f64, system: HouseSystem, shift:
             let q2 = pyfloat::rem(c[4] - asc_deg, 360.0);
             c[2] = pyfloat::rem(asc_deg + q2 / 3.0, 360.0);
             c[3] = pyfloat::rem(asc_deg + (2.0 * q2) / 3.0, 360.0);
-            // c[i - 6] with i = 5, 6 reads c[-1], c[0] in Python: c[12] and c[0] (= 0.0).
-            c[5] = pyfloat::rem(c[12] + 180.0, 360.0);
-            c[6] = pyfloat::rem(c[0] + 180.0, 360.0);
+            // Houses 5, 6 oppose 11, 12; houses 8, 9 oppose 2, 3.
+            c[5] = pyfloat::rem(c[11] + 180.0, 360.0);
+            c[6] = pyfloat::rem(c[12] + 180.0, 360.0);
             c[8] = pyfloat::rem(c[2] + 180.0, 360.0);
             c[9] = pyfloat::rem(c[3] + 180.0, 360.0);
         }
