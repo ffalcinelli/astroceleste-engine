@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
 const require = createRequire(import.meta.url);
-const { Engine, synastry, derivedChart, julianDay } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
+const { Engine, synastry, derivedChart, julianDay, excerptKernel } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
 
 const PRIVATE = new Set(["degree_symbol", "degree_symbols"]);
 const strip = (v) =>
@@ -46,6 +46,13 @@ assert.equal(chart.houses.length, 12);
 assert.equal(julianDay("2000-06-01T12:00:00Z"), 2451697);
 assert.throws(() => small.chart({ utc: "2010-01-01T00:00:00Z", latitude: 0, longitude: 0 }), (e) => e.code === "ephemeris_out_of_range");
 assert.throws(() => small.chart({ utc: "nope", latitude: 0, longitude: 0 }), (e) => e.code === "invalid_input");
+// An excerpt of the excerpt computes the same charts inside its range.
+const march = excerptKernel(readFileSync(join(root, "tests/data/de440s_2000.bsp")), 2451604.5, 2451696.5);
+const tiny = new Engine();
+tiny.addKernel("march.bsp", march);
+const req = { utc: "2000-04-01T12:00:00Z", latitude: 41.9, longitude: 12.5 };
+assert.deepEqual(tiny.chart(req), small.chart(req));
+assert.ok(!tiny.supports(2451800));
 console.log("excerpt checks: ok");
 
 const full = join(root, "kernels/de440s.bsp");

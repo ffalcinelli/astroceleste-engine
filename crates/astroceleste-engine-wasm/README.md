@@ -26,6 +26,13 @@ synastry(chartA.planets, chartB.planets);
 derivedChart(chart, 5);
 ```
 
+To ship a smaller kernel, cut the range you need (positions are unchanged inside it):
+
+```js
+import { excerptKernel } from "astroceleste-engine";
+const small = excerptKernel(fullKernelBytes, 2415020.5, 2488069.5); // 1900-2100, ~21 MB
+```
+
 Errors are thrown as `Error` objects with a `code` (`ephemeris_out_of_range`,
 `invalid_input`, `invalid_kernel`).
 

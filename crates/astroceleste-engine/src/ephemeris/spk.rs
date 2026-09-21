@@ -98,6 +98,8 @@ impl Storage {
 /// One SPK segment: a center → target trajectory over a time span.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Segment {
+    /// Segment name from the DAF name record (e.g. "DE-0440LE-0440").
+    pub name: String,
     pub center: i32,
     pub target: i32,
     pub frame: i32,
@@ -195,12 +197,19 @@ impl Spk {
                 .read_bytes((record_number - 1) * RECORD_BYTES, &mut record)?;
             let next = spk.double_at(&record, 0) as usize;
             let count = spk.double_at(&record, 16) as usize;
+            // The name record follows its summary record.
+            let mut names = [0u8; RECORD_BYTES];
+            spk.storage
+                .read_bytes(record_number * RECORD_BYTES, &mut names)?;
+            let name_chars = summary_words * WORD_BYTES;
             for i in 0..count {
                 let base = 24 + i * summary_words * WORD_BYTES;
                 if base + summary_words * WORD_BYTES > RECORD_BYTES {
                     return Err(SpkError::Format("summary overflows its record".into()));
                 }
-                let segment = spk.read_segment(&record, base)?;
+                let mut segment = spk.read_segment(&record, base)?;
+                let raw = &names[i * name_chars..(i + 1) * name_chars];
+                segment.name = String::from_utf8_lossy(raw).trim_end().to_string();
                 spk.segments.push(segment);
             }
             record_number = next;
@@ -220,6 +229,7 @@ impl Spk {
         let end_word = self.int_at(record, ints + 20) as usize;
 
         let mut segment = Segment {
+            name: String::new(),
             center,
             target,
             frame,
@@ -365,6 +375,134 @@ impl Spk {
             }
         }
         (position, velocity)
+    }
+
+    /// A new SPK file with only the data covering TDB Julian dates `start_jd` to
+    /// `end_jd` (like `python -m jplephem excerpt`): whole Chebyshev records are kept, so
+    /// positions inside the range are identical to this kernel's. Segments that do not
+    /// overlap the range are left out. Written little-endian; types 2 and 3 only.
+    pub fn excerpt(&self, start_jd: f64, end_jd: f64) -> Result<Vec<u8>, SpkError> {
+        const SUMMARIES_PER_RECORD: usize = 25; // (128 words - 3) / 5 words per summary
+        const WORDS_PER_RECORD: usize = RECORD_BYTES / WORD_BYTES;
+        if end_jd <= start_jd {
+            return Err(SpkError::Format("excerpt range is empty".into()));
+        }
+        let (start_et, end_et) = (jd_tdb_to_et(start_jd), jd_tdb_to_et(end_jd));
+
+        struct Kept<'a> {
+            segment: &'a Segment,
+            start_et: f64,
+            end_et: f64,
+            first_word: usize,
+            last_word: usize,
+        }
+        let overlapping: Vec<&Segment> = self
+            .segments
+            .iter()
+            .filter(|s| s.start_et <= end_et && s.end_et >= start_et)
+            .collect();
+        let summary_records = overlapping.len().div_ceil(SUMMARIES_PER_RECORD).max(1);
+        // Record 1 is the file record, then summary + name record pairs, then data.
+        let mut word = (1 + 2 * summary_records) * WORDS_PER_RECORD + 1;
+        let mut data: Vec<f64> = Vec::new();
+        let mut kept = Vec::new();
+        for segment in overlapping {
+            self.check_type(segment)?;
+            let last = segment.record_count as i64 - 1;
+            let first_index =
+                (((start_et - segment.init) / segment.interval).floor() as i64).clamp(0, last);
+            let last_index =
+                (((end_et - segment.init) / segment.interval).floor() as i64).clamp(0, last);
+            let (i0, i1) = (first_index as usize, last_index as usize);
+            let count = i1 - i0 + 1;
+            let records = self.read_words(
+                segment.start_word + i0 * segment.record_size,
+                count * segment.record_size,
+            )?;
+            let init = segment.init + i0 as f64 * segment.interval;
+            let first_word = word;
+            data.extend_from_slice(&records);
+            data.extend_from_slice(&[
+                init,
+                segment.interval,
+                segment.record_size as f64,
+                count as f64,
+            ]);
+            word += records.len() + 4;
+            kept.push(Kept {
+                segment,
+                start_et: segment.start_et.max(init),
+                end_et: segment.end_et.min(init + count as f64 * segment.interval),
+                first_word,
+                last_word: word - 1,
+            });
+        }
+
+        let data_records = data.len().div_ceil(WORDS_PER_RECORD);
+        let mut out = vec![0u8; (1 + 2 * summary_records + data_records) * RECORD_BYTES];
+        let put_i32 =
+            |out: &mut [u8], at: usize, v: i32| out[at..at + 4].copy_from_slice(&v.to_le_bytes());
+        let put_f64 =
+            |out: &mut [u8], at: usize, v: f64| out[at..at + 8].copy_from_slice(&v.to_le_bytes());
+
+        // File record.
+        out[0..8].copy_from_slice(b"DAF/SPK ");
+        put_i32(&mut out, 8, 2);
+        put_i32(&mut out, 12, 6);
+        let ifname = format!("{:<60}", "astroceleste-engine excerpt");
+        out[16..76].copy_from_slice(&ifname.as_bytes()[..60]);
+        put_i32(&mut out, 76, 2);
+        put_i32(&mut out, 80, (2 + 2 * (summary_records - 1)) as i32);
+        put_i32(&mut out, 84, word as i32);
+        out[88..96].copy_from_slice(b"LTL-IEEE");
+        out[699..727].copy_from_slice(b"FTPSTR:\r:\n:\r\n:\r\x00:\x81:\x10\xce:ENDFTP");
+
+        // Summary and name records.
+        let chunks: Vec<&[Kept]> = if kept.is_empty() {
+            vec![&[]]
+        } else {
+            kept.chunks(SUMMARIES_PER_RECORD).collect()
+        };
+        for (k, chunk) in chunks.iter().enumerate() {
+            let record = 2 + 2 * k;
+            let base = (record - 1) * RECORD_BYTES;
+            let next = if k + 1 < chunks.len() { record + 2 } else { 0 };
+            let prev = if k > 0 { record - 2 } else { 0 };
+            put_f64(&mut out, base, next as f64);
+            put_f64(&mut out, base + 8, prev as f64);
+            put_f64(&mut out, base + 16, chunk.len() as f64);
+            let names = base + RECORD_BYTES;
+            out[names..names + RECORD_BYTES].fill(b' ');
+            for (i, kept) in chunk.iter().enumerate() {
+                let at = base + 24 + i * 40;
+                put_f64(&mut out, at, kept.start_et);
+                put_f64(&mut out, at + 8, kept.end_et);
+                let s = kept.segment;
+                for (j, v) in [
+                    s.target,
+                    s.center,
+                    s.frame,
+                    s.data_type,
+                    kept.first_word as i32,
+                    kept.last_word as i32,
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    put_i32(&mut out, at + 16 + 4 * j, v);
+                }
+                let name = s.name.as_bytes();
+                let n = name.len().min(40);
+                out[names + i * 40..names + i * 40 + n].copy_from_slice(&name[..n]);
+            }
+        }
+
+        // Segment data.
+        let data_base = (1 + 2 * summary_records) * RECORD_BYTES;
+        for (i, v) in data.iter().enumerate() {
+            put_f64(&mut out, data_base + i * WORD_BYTES, *v);
+        }
+        Ok(out)
     }
 
     fn read_words(&self, first_word: usize, count: usize) -> Result<Vec<f64>, SpkError> {

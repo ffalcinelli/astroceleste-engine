@@ -202,3 +202,12 @@ pub fn derived_chart(
 pub fn julian_day(utc: &str) -> Result<f64, JsValue> {
     Ok(UtcInstant::parse(utc).map_err(invalid)?.julian_day())
 }
+
+/// A smaller kernel covering TDB Julian dates `startJd`..`endJd`, with positions
+/// identical to `kernel`'s inside that range (e.g. to ship 1900-2100 of de440s).
+#[wasm_bindgen(js_name = excerptKernel)]
+pub fn excerpt_kernel(kernel: Vec<u8>, start_jd: f64, end_jd: f64) -> Result<Vec<u8>, JsValue> {
+    let spk = Spk::from_bytes(kernel).map_err(|e| js_error("invalid_kernel", &e.to_string()))?;
+    spk.excerpt(start_jd, end_jd)
+        .map_err(|e| js_error("invalid_kernel", &e.to_string()))
+}

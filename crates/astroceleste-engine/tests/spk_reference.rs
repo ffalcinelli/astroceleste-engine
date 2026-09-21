@@ -82,3 +82,63 @@ fn full_kernel_matches_jplephem() {
     let spk = Spk::open(path).unwrap();
     check_rows(&spk, reference()["full"].as_array().unwrap());
 }
+
+#[test]
+fn excerpt_keeps_states_identical_inside_its_range() {
+    let spk = Spk::open(workspace_root().join("tests/data/de440s_2000.bsp")).unwrap();
+    // 2000-03-01 .. 2000-06-01 (TDB)
+    let (start, end) = (2_451_604.5, 2_451_696.5);
+    let bytes = spk.excerpt(start, end).unwrap();
+    let small = Spk::from_bytes(bytes.clone()).unwrap();
+    assert_eq!(small.segments().len(), spk.segments().len());
+    for (a, b) in small.segments().iter().zip(spk.segments()) {
+        assert_eq!(
+            (a.target, a.center, a.frame, &a.name),
+            (b.target, b.center, b.frame, &b.name)
+        );
+        assert!(!a.name.is_empty());
+        assert!(a.start_et <= jd_tdb_to_et(start) && a.end_et >= jd_tdb_to_et(end));
+        // Single-record segments (the Mercury and Venus barycentre offsets) stay whole.
+        assert!(a.end_et - a.start_et <= b.end_et - b.start_et);
+    }
+    let mut jd = start;
+    while jd <= end {
+        for seg in spk.segments() {
+            let et = jd_tdb_to_et(jd);
+            assert_eq!(
+                small.state(seg.target, seg.center, et),
+                spk.state(seg.target, seg.center, et)
+            );
+        }
+        jd += 0.37;
+    }
+    assert!(matches!(
+        small.state(301, 3, jd_tdb_to_et(2_451_900.5)),
+        Err(SpkError::OutOfRange { .. })
+    ));
+    // Excerpting an excerpt gives the same file.
+    assert_eq!(small.excerpt(start, end).unwrap(), bytes);
+}
+
+#[test]
+fn excerpt_of_the_full_kernel() {
+    let path = workspace_root().join("kernels/de440s.bsp");
+    if !path.exists() {
+        eprintln!("skipping: {} not found", path.display());
+        return;
+    }
+    let full = Spk::open(path).unwrap();
+    // 1900-01-01 .. 2100-01-01
+    let small = Spk::from_bytes(full.excerpt(2_415_020.5, 2_488_069.5).unwrap()).unwrap();
+    let mut jd = 2_415_020.5;
+    while jd < 2_488_069.5 {
+        let et = jd_tdb_to_et(jd);
+        for seg in full.segments() {
+            assert_eq!(
+                small.state(seg.target, seg.center, et),
+                full.state(seg.target, seg.center, et)
+            );
+        }
+        jd += 97.3;
+    }
+}
