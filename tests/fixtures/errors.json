@@ -1,0 +1,1 @@
+[{"input":{"id":"before_kernel","utc":"1700-01-01T00:00:00","lat":41.9,"lon":12.5,"house_system":"P","zodiac_type":"tropical","ayanamsa":"galcent_0sag"},"error":"ephemeris_out_of_range"},{"input":{"id":"after_kernel","utc":"2200-01-01T00:00:00","lat":41.9,"lon":12.5,"house_system":"P","zodiac_type":"tropical","ayanamsa":"galcent_0sag"},"error":"ephemeris_out_of_range"}]

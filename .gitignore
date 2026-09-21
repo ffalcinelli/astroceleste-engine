@@ -1,0 +1,5 @@
+/target
+/kernels/
+*.bsp
+!/tests/data/*.bsp
+__pycache__/

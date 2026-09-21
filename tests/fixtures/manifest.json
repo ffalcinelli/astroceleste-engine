@@ -1,0 +1,1 @@
+{"generator":"astroceleste api: manage.py dump_golden_charts","engine":"skyfield","seed":20260921,"python":"3.12.13","counts":{"natal":161,"errors":2,"horary":33,"transits":27,"synastry":27,"derived":27},"note":"Inputs are UTC. Natal fixtures are referenced by input id."}
