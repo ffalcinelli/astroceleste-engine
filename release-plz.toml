@@ -1,0 +1,6 @@
+[workspace]
+changelog_update = true
+git_release_enable = true
+git_tag_name = "v{{ version }}"
+# Versions follow the core crate; bindings crates join the same release train.
+dependencies_update = false

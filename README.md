@@ -28,6 +28,30 @@ scripts/fetch-kernels.sh        # optional: full de440s (1849-2150), enables the
 cargo clippy --all-targets -- -D warnings
 ```
 
+## Releasing
+
+Releases are automated with [release-plz](https://release-plz.dev):
+
+1. Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org)
+   (`feat:`, `fix:`, `perf:`, `refactor:`, … and `!` for breaking changes).
+2. The `Release` workflow keeps a release PR open. It bumps the version and updates
+   `CHANGELOG.md`.
+3. Merging that PR tags `vX.Y.Z`, creates the GitHub Release and publishes to crates.io.
+
+One-time setup:
+
+- **First publish** is manual (crates.io trusted publishing can only be configured for an
+  existing crate): `cargo publish -p astroceleste-engine` with a personal token.
+- On crates.io → crate settings → *Trusted Publishing*, add this repository, workflow
+  `release.yml`, environment `release`. From then on, no registry token is stored anywhere.
+- Create the `release` environment in the GitHub repository settings (optionally with
+  required reviewers).
+- Release PRs opened with the default `GITHUB_TOKEN` do not trigger CI. To get CI on
+  them, use a GitHub App or fine-grained token in the `release-pr` job.
+
+The Python (PyPI) and WASM (npm) packages will join the same release train once their
+bindings exist, both through trusted publishing.
+
 ## Ephemerides
 
 The engine reads NASA JPL SPK kernels (DE440s by default, DE441 for dates outside 1849–2150).

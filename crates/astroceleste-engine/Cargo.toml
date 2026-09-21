@@ -8,6 +8,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+# Tests read fixtures and kernels from the repository root: ship only the library.
+include = ["src/**/*.rs", "src/**/*.bin", "LICENSE-*"]
 
 [dependencies]
 
