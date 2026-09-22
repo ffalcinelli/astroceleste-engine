@@ -97,8 +97,8 @@ Releases are trunk-based: there are no release branches or release PRs. Pushing 
 4. The `Release` workflow checks that the tag is on `main`, matches the version in
    `Cargo.toml` and has a `CHANGELOG.md` entry. It then publishes the crate to crates.io,
    creates the GitHub Release from the changelog entry, and publishes the Python wheels
-   (Linux x86_64/aarch64, macOS universal2, Windows x64, sdist) to PyPI and the
-   WebAssembly package to npm.
+   (Linux x86_64/aarch64 glibc and musl, macOS universal2, Windows x64, sdist) to PyPI
+   and the WebAssembly package to npm.
 
 Protect `v*` tags with a tag ruleset so only maintainers can trigger a release.
 
