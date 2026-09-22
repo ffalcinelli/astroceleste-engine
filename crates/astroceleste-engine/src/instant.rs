@@ -38,6 +38,7 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
     (year, month, day)
 }
 
+/// The text given to [`UtcInstant::parse`] is not a supported date-time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError(pub String);
 
@@ -50,18 +51,22 @@ impl fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 impl UtcInstant {
+    /// 2000-01-01T12:00:00Z.
     pub const J2000: UtcInstant = UtcInstant {
         micros: 946_728_000 * US_PER_SECOND,
     };
 
+    /// From microseconds since the Unix epoch.
     pub fn from_micros(micros: i64) -> Self {
         UtcInstant { micros }
     }
 
+    /// Microseconds since the Unix epoch.
     pub fn micros(&self) -> i64 {
         self.micros
     }
 
+    /// From proleptic-Gregorian calendar fields (UTC).
     pub fn from_civil(
         year: i32,
         month: u32,
@@ -114,6 +119,7 @@ impl UtcInstant {
         (self.micros - other.micros) as f64 / US_PER_SECOND as f64
     }
 
+    /// `micros` microseconds later (earlier if negative).
     pub fn add_micros(&self, micros: i64) -> Self {
         UtcInstant {
             micros: self.micros + micros,

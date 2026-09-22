@@ -3,6 +3,8 @@
 //! One implementation shared by the Astroceleste server (Python bindings), desktop and
 //! mobile apps (native) and the web app (WASM), so every platform computes identical charts.
 //!
+//! **Experimental (0.0.x):** the API may change in any release.
+//!
 //! ```no_run
 //! use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 //! use astroceleste_engine::{calculate_chart, ChartRequest, UtcInstant};
@@ -23,31 +25,44 @@
 //! # }
 //! ```
 
-pub mod almanac;
-pub mod aspects;
-pub mod catalog;
-pub mod chart;
-pub mod chiron;
-pub mod constants;
-pub mod derived;
+mod almanac;
+mod aspects;
+mod catalog;
+mod chart;
+mod chiron;
+mod constants;
+mod derived;
 pub mod ephemeris;
-pub mod error;
-pub mod fixed_stars;
+mod error;
+mod fixed_stars;
+#[doc(hidden)] // exposed for the reduction tests; not part of the API
 pub mod frames;
-pub mod horary;
-pub mod houses;
-pub mod instant;
-pub mod lots;
-pub mod lunar;
-pub mod planets;
-pub mod pyfloat;
-pub mod symbolic;
-pub mod temperament;
+mod horary;
+mod houses;
+mod instant;
+mod lots;
+mod lunar;
+mod planets;
+mod pyfloat;
+mod symbolic;
+mod temperament;
+#[doc(hidden)] // exposed for the reduction tests; not part of the API
 pub mod time;
-pub mod zodiac;
+mod zodiac;
 
-pub use chart::{calculate_chart, Chart, ChartRequest};
-pub use derived::{calculate_derived_chart, calculate_synastry, calculate_transit_chart};
+pub use aspects::{Aspect, CrossAspect};
+pub use catalog::LunarMansion;
+pub use chart::{calculate_chart, Chart, ChartRequest, HouseCusp, Placement};
+pub use derived::{
+    calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,
+};
 pub use error::EngineError;
-pub use horary::{calculate_horary_chart, HoraryChart};
-pub use instant::UtcInstant;
+pub use fixed_stars::FixedStarPosition;
+pub use horary::{
+    calculate_horary_chart, ApplyingAspect, HoraryChart, HoraryData, MoonStatus, PlanetaryHours,
+    SeparatingAspect, Stricture,
+};
+pub use instant::{ParseError, UtcInstant};
+pub use lots::Lot;
+pub use lunar::LunarStatus;
+pub use temperament::{Factor, Qualities, Scores, Temperament};

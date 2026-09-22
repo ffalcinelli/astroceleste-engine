@@ -2,8 +2,8 @@
 //! NOTICE), used for planetary hours.
 
 use crate::constants::{AU_M, DAY_S, TAU};
-use crate::ephemeris::kernels::Kernel;
 use crate::ephemeris::observe::{apparent, observe_from, Observer, EARTH};
+use crate::ephemeris::Kernel;
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::frames::nutation::iau2000b_radians;

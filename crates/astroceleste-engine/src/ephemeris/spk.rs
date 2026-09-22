@@ -22,20 +22,30 @@ pub fn jd_tdb_to_et(jd_tdb: f64) -> f64 {
     (jd_tdb - J2000_JD) * SECONDS_PER_DAY
 }
 
+/// Failure reading or evaluating an SPK kernel.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum SpkError {
+    /// The file could not be read.
     Io(String),
+    /// The file is not a valid SPK/DAF kernel.
     Format(String),
+    /// A segment uses an SPK data type other than 2 or 3.
     UnsupportedType(i32),
     /// No segment for this center → target pair covers the requested time.
     OutOfRange {
+        /// NAIF code of the target body.
         target: i32,
+        /// NAIF code of the center body.
         center: i32,
+        /// Requested time, TDB seconds past J2000.
         et: f64,
     },
     /// The kernel has no segment at all for this center → target pair.
     NoSegment {
+        /// NAIF code of the target body.
         target: i32,
+        /// NAIF code of the center body.
         center: i32,
     },
 }
@@ -100,11 +110,17 @@ impl Storage {
 pub struct Segment {
     /// Segment name from the DAF name record (e.g. "DE-0440LE-0440").
     pub name: String,
+    /// NAIF code of the center body.
     pub center: i32,
+    /// NAIF code of the target body.
     pub target: i32,
+    /// NAIF code of the reference frame (1 = J2000/ICRF).
     pub frame: i32,
+    /// SPK data type (2: Chebyshev positions, 3: positions and velocities).
     pub data_type: i32,
+    /// Start of coverage, TDB seconds past J2000.
     pub start_et: f64,
+    /// End of coverage, TDB seconds past J2000.
     pub end_et: f64,
     /// 1-based DAF word addresses of the segment data.
     start_word: usize,
@@ -116,6 +132,7 @@ pub struct Segment {
 }
 
 impl Segment {
+    /// Whether the segment covers `et` (TDB seconds past J2000).
     pub fn covers(&self, et: f64) -> bool {
         et >= self.start_et && et <= self.end_et
     }
@@ -129,6 +146,7 @@ impl Segment {
     }
 }
 
+/// A JPL SPK (DAF) kernel, read from a file or from memory.
 pub struct Spk {
     storage: Storage,
     little_endian: bool,
@@ -157,6 +175,7 @@ impl Spk {
         Self::load(Storage::File(Mutex::new(File::open(path)?)))
     }
 
+    /// The kernel's segments, in file order.
     pub fn segments(&self) -> &[Segment] {
         &self.segments
     }

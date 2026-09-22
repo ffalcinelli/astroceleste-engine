@@ -43,8 +43,11 @@ const EXPECTED_BODIES: [&str; 16] = [
 /// What to compute.
 #[derive(Debug, Clone)]
 pub struct ChartRequest<'a> {
+    /// Moment of the chart.
     pub instant: UtcInstant,
+    /// Geographic latitude in degrees, north positive.
     pub latitude: f64,
+    /// Geographic longitude in degrees, east positive.
     pub longitude: f64,
     /// House system code, echoed as given; its first letter selects the system.
     pub house_system: &'a str,
@@ -57,6 +60,7 @@ pub struct ChartRequest<'a> {
 }
 
 impl<'a> ChartRequest<'a> {
+    /// A tropical Placidus request with default orbs.
     pub fn new(instant: UtcInstant, latitude: f64, longitude: f64) -> Self {
         ChartRequest {
             instant,
@@ -73,47 +77,83 @@ impl<'a> ChartRequest<'a> {
 /// A planet, lunar point or angle placed in the chart.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Placement {
+    /// Body or angle name, e.g. "Sun", "North Node", "Ascendant".
     pub name: &'static str,
+    /// Glyph, e.g. "☉" ("ASC" and "MC" for the angles).
     pub symbol: &'static str,
+    /// Zodiac sign name, e.g. "Taurus".
     pub sign: &'static str,
+    /// Zodiac sign glyph, e.g. "♉".
     pub sign_symbol: &'static str,
+    /// Whole degrees within the sign (0-29).
     pub degree: i64,
+    /// Arc minutes past `degree` (0-59).
     pub minute: i64,
+    /// Ecliptic longitude in degrees [0, 360), tropical or sidereal as requested.
     pub ecliptic_longitude: f64,
+    /// House (1-12) the point falls in.
     pub house: u8,
+    /// Apparent speed in ecliptic longitude, degrees per day.
     pub speed: f64,
+    /// Whether the apparent motion is retrograde.
     pub is_retrograde: bool,
+    /// Symbolic degree (1-30) within the sign, as used by degree symbolism.
     pub symbolic_degree: i64,
 }
 
+/// The cusp of one house.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct HouseCusp {
+    /// House number (1-12).
     pub house_number: u8,
+    /// Zodiac sign name, e.g. "Taurus".
     pub sign: &'static str,
+    /// Zodiac sign glyph, e.g. "♉".
     pub sign_symbol: &'static str,
+    /// Whole degrees within the sign (0-29).
     pub degree: i64,
+    /// Arc minutes past `degree` (0-59).
     pub minute: i64,
+    /// Ecliptic longitude in degrees [0, 360), tropical or sidereal as requested.
     pub ecliptic_longitude: f64,
+    /// Symbolic degree (1-30) within the sign, as used by degree symbolism.
     pub symbolic_degree: i64,
 }
 
+/// A complete chart (`calculate_chart_data`); serializes to the API's JSON.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Chart {
+    /// House system code, echoed from the request.
     pub house_system: String,
+    /// "tropical" or "sidereal".
     pub zodiac_type: &'static str,
+    /// Ayanamsa code; `None` for tropical charts.
     pub ayanamsa: Option<&'static str>,
+    /// Human-readable ayanamsa name; `None` for tropical charts.
     pub ayanamsa_name: Option<&'static str>,
+    /// Ayanamsa at the chart instant, in degrees; `None` for tropical charts.
     pub ayanamsa_value: Option<f64>,
+    /// `ayanamsa_value` as degrees, minutes and seconds; `None` for tropical charts.
     pub ayanamsa_formatted: Option<String>,
+    /// Mean precession rate used for the fixed stars, arcseconds per year.
     pub precession_rate_arcsec_yr: f64,
+    /// Orb settings in effect: the defaults merged with the request's.
     pub orb_settings: Value,
+    /// Planets, lunar points, Chiron, Lilith and the angles.
     pub planets: Vec<Placement>,
+    /// Expected bodies that could not be computed (e.g. Chiron outside its table).
     pub unavailable_bodies: Vec<&'static str>,
+    /// The twelve house cusps.
     pub houses: Vec<HouseCusp>,
+    /// Aspects between chart points, then fixed-star conjunctions.
     pub aspects: Vec<Aspect>,
+    /// Fixed stars conjunct a chart point.
     pub fixed_stars: Vec<FixedStarPosition>,
+    /// The Arabic parts (lots).
     pub arabic_parts: Vec<Lot>,
+    /// Temperament assessment.
     pub temperament: Temperament,
+    /// Lunar phase and status; `None` (serialized as `{}`) without a Moon.
     #[serde(serialize_with = "empty_object_if_none")]
     pub lunar_status: Option<LunarStatus>,
 }

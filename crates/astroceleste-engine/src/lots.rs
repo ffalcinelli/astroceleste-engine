@@ -72,18 +72,30 @@ const LOTS: [LotDefinition; 11] = [
     },
 ];
 
+/// An Arabic part (lot) placed in the chart.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Lot {
+    /// Lot name, e.g. "Fortune".
     pub name: &'static str,
+    /// Lot glyph.
     pub symbol: &'static str,
+    /// Zodiac sign name, e.g. "Taurus".
     pub sign: &'static str,
+    /// Zodiac sign glyph, e.g. "♉".
     pub sign_symbol: &'static str,
+    /// Whole degrees within the sign (0-29).
     pub degree: i64,
+    /// Arc minutes past `degree` (0-59).
     pub minute: i64,
+    /// Ecliptic longitude in degrees [0, 360), tropical or sidereal as requested.
     pub ecliptic_longitude: f64,
+    /// House (1-12) the point falls in.
     pub house: u8,
+    /// Formula applied, e.g. "ASC + Moon - Sun (Day)".
     pub formula_used: String,
+    /// Whether the chart is diurnal (Sun above the horizon), which selects the formula.
     pub is_diurnal: bool,
+    /// Symbolic degree (1-30) within the sign, as used by degree symbolism.
     pub symbolic_degree: i64,
 }
 

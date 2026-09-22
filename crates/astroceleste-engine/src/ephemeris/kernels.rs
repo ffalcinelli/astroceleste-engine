@@ -12,13 +12,17 @@ pub const SSB: i32 = 0;
 /// One loaded kernel and the Julian-date span that *all* its segments cover (a chart
 /// needs every body, so the usable span is their intersection).
 pub struct Kernel {
+    /// Label used in error messages and diagnostics, e.g. "de440s.bsp".
     pub name: String,
     spk: Spk,
+    /// First Julian date (TDB) every segment covers.
     pub start_jd: f64,
+    /// Last Julian date (TDB) every segment covers.
     pub end_jd: f64,
 }
 
 impl Kernel {
+    /// Wrap a loaded SPK file; fails if it has no segments.
     pub fn new(name: impl Into<String>, spk: Spk) -> Result<Self, SpkError> {
         let segments = spk.segments();
         if segments.is_empty() {
@@ -40,6 +44,7 @@ impl Kernel {
         })
     }
 
+    /// Whether every segment covers Julian date `jd`.
     pub fn covers(&self, jd: f64) -> bool {
         self.start_jd <= jd && jd <= self.end_jd
     }
@@ -59,6 +64,7 @@ impl Kernel {
     /// Position (au) and velocity (au/day) of `code` relative to the Solar System
     /// Barycenter, summing the chain of segments outward from the SSB like Skyfield's
     /// `VectorSum`.
+    #[doc(hidden)] // takes the internal `Time`
     pub fn barycentric(&self, code: i32, t: &Time) -> Result<(Vec3, Vec3), SpkError> {
         let mut chain = Vec::new();
         let mut current = code;
@@ -95,18 +101,22 @@ pub struct KernelSet {
 }
 
 impl KernelSet {
+    /// An empty set.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add a kernel, after (so less preferred than) the ones already loaded.
     pub fn push(&mut self, kernel: Kernel) {
         self.kernels.push(kernel);
     }
 
+    /// The kernels, in preference order.
     pub fn kernels(&self) -> &[Kernel] {
         &self.kernels
     }
 
+    /// Whether no kernel is loaded.
     pub fn is_empty(&self) -> bool {
         self.kernels.is_empty()
     }

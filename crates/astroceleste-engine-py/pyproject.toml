@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE"]
 keywords = ["astrology", "ephemeris", "jpl", "horoscope"]
 classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Rust",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -19,6 +20,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.urls]
+Homepage = "https://astroceleste.it"
 Repository = "https://github.com/ffalcinelli/astroceleste-engine"
 
 [project.optional-dependencies]

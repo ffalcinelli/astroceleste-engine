@@ -29,11 +29,17 @@ pub struct FixedStar {
 /// One of the 28 lunar mansions (manazil al-qamar).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct LunarMansion {
+    /// Mansion number (1-28).
     pub number: u8,
+    /// Arabic name.
     pub arabic_name: &'static str,
+    /// English name.
     pub name: &'static str,
+    /// Sign or signs the mansion spans, e.g. "Aries - Taurus".
     pub sign: &'static str,
+    /// Start, ecliptic longitude in degrees.
     pub degree_start: f64,
+    /// End, ecliptic longitude in degrees.
     pub degree_end: f64,
 }
 

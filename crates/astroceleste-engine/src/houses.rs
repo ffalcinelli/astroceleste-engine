@@ -8,6 +8,7 @@ use crate::pyfloat;
 use crate::time::Time;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum HouseSystem {
     Placidus,
     WholeSign,

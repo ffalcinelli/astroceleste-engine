@@ -35,7 +35,7 @@ fn to_py_err(err: CoreError) -> PyErr {
     match &err {
         CoreError::OutOfRange { .. } => EphemerisRangeError::new_err(err.to_string()),
         CoreError::InvalidInput(msg) => PyValueError::new_err(msg.clone()),
-        CoreError::Ephemeris(_) => EngineError::new_err(err.to_string()),
+        _ => EngineError::new_err(err.to_string()),
     }
 }
 

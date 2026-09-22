@@ -1,10 +1,18 @@
 # astroceleste-engine
 
+[![crates.io](https://img.shields.io/crates/v/astroceleste-engine.svg)](https://crates.io/crates/astroceleste-engine)
+[![docs.rs](https://img.shields.io/docsrs/astroceleste-engine)](https://docs.rs/astroceleste-engine)
+[![PyPI](https://img.shields.io/pypi/v/astroceleste-engine.svg)](https://pypi.org/project/astroceleste-engine/)
+[![npm](https://img.shields.io/npm/v/astroceleste-engine.svg)](https://www.npmjs.com/package/astroceleste-engine)
+[![CI](https://github.com/ffalcinelli/astroceleste-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ffalcinelli/astroceleste-engine/actions/workflows/ci.yml)
+
 Astrological chart calculation on JPL ephemerides, in pure Rust.
 
 It is the calculation core of [Astroceleste](https://astroceleste.it). The same code runs
 on the server (Python bindings), in the desktop and mobile apps (native) and in the browser
 (WASM), so every platform computes the same chart down to the arcsecond.
+
+> **Experimental (0.0.x):** the API may change in any release. Pin an exact version.
 
 > Status: the complete chart pipeline is ported and matches the reference implementation
 > on every golden chart: planets, lunar nodes, Chiron, Lilith, houses (Placidus, Whole Sign,
@@ -77,33 +85,36 @@ node crates/astroceleste-engine-wasm/tests/golden.mjs
 Releases are automated with [release-plz](https://release-plz.dev):
 
 1. Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org)
-   (`feat:`, `fix:`, `perf:`, `refactor:`, … and `!` for breaking changes).
+   (`feat:`, `fix:`, `perf:`, `refactor:`, … and `!` for breaking changes). While the
+   version is 0.0.x, `feat`/`fix` bump the patch version and a breaking change bumps the
+   minor version.
 2. The `Release` workflow keeps a release PR open. It bumps the version and updates
    `CHANGELOG.md`.
-3. Merging that PR tags `vX.Y.Z`, creates the GitHub Release and publishes to crates.io.
+3. Merging that PR tags `vX.Y.Z`, creates the GitHub Release and publishes the crate to
+   crates.io, the Python wheels (Linux x86_64/aarch64, macOS universal2, Windows x64, sdist)
+   to PyPI and the WebAssembly package to npm.
 
-One-time setup:
+All three registries use Trusted Publishing (OIDC), so no long-lived token is stored.
+crates.io and npm can only trust a workflow for a package that already exists, so the
+first release uses short-lived tokens instead:
 
-- **First publish** is manual (crates.io trusted publishing can only be configured for an
-  existing crate): `cargo publish -p astroceleste-engine` with a personal token.
-- On crates.io → crate settings → *Trusted Publishing*, add this repository, workflow
-  `release.yml`, environment `release`. From then on, no registry token is stored anywhere.
-- Create the `release` environment in the GitHub repository settings (optionally with
-  required reviewers).
-- Release PRs opened with the default `GITHUB_TOKEN` do not trigger CI. To get CI on
-  them, use a GitHub App or fine-grained token in the `release-pr` job.
+1. Create the `release`, `pypi` and `npm` environments in the repository settings
+   (optionally with required reviewers).
+2. **crates.io**: create an API token scoped to `publish-new` and `publish-update` for the
+   crate `astroceleste-engine`, with a short expiry, and store it as the
+   `CARGO_REGISTRY_TOKEN` secret of the `release` environment.
+3. **npm**: create a granular access token with publish rights and a short expiry, and store
+   it as the `NPM_TOKEN` secret of the `npm` environment.
+4. **PyPI**: add a *pending* trusted publisher for project `astroceleste-engine` (workflow
+   `release.yml`, environment `pypi`). No token is needed.
+5. Push to `main`. The workflow publishes the version in `Cargo.toml`.
+6. Once the packages exist, add the trusted publisher on crates.io (crate settings →
+   *Trusted Publishing*: this repository, workflow `release.yml`, environment `release`)
+   and on npm (package settings: workflow `release.yml`, environment `npm`). Then delete
+   both secrets and revoke the tokens. The workflow prefers OIDC whenever it is available.
 
-The same release publishes the Python wheels (Linux x86_64/aarch64, macOS universal2,
-Windows x64, sdist) to PyPI and the WebAssembly package to npm, from `release.yml`:
-
-- **PyPI**: add a *pending* trusted publisher for project `astroceleste-engine`
-  (workflow `release.yml`, environment `pypi`); it works from the first release.
-- **npm**: trusted publishing can only be configured on an existing package, so publish
-  the first version by hand (`wasm-pack build --release --target web
-  crates/astroceleste-engine-wasm`, then in `pkg/`: `npm pkg set name=astroceleste-engine
-  && npm publish --access public`), then add the trusted publisher (workflow
-  `release.yml`, environment `npm`).
-- Create the `pypi` and `npm` environments in the repository settings.
+Release PRs opened with the default `GITHUB_TOKEN` do not trigger CI. To get CI on them,
+use a GitHub App or fine-grained token in the `release-pr` job.
 
 ## Ephemerides
 
