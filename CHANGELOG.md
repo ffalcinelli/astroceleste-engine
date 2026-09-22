@@ -8,6 +8,12 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.2]
+
+### Added
+
+- Python wheels for musllinux (Alpine and other musl-based distributions).
+
 ## [0.0.1]
 
 ### Added

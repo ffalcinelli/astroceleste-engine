@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "astroceleste-engine"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -12,7 +12,7 @@ dependencies = [
 
 [[package]]
 name = "astroceleste-engine-py"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "astroceleste-engine",
  "pyo3",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "astroceleste-engine-wasm"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "astroceleste-engine",
  "js-sys",
