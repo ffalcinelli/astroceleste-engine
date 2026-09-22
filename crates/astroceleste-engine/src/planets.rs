@@ -47,9 +47,8 @@ pub fn require_kernel(kernels: &KernelSet, jd: f64) -> Result<&Kernel, EngineErr
 }
 
 pub struct Planets {
+    /// Bodies that could not be computed (e.g. Chiron outside its table) are left out.
     pub bodies: Vec<BodyPosition>,
-    /// Bodies that could not be computed, e.g. Chiron outside its table.
-    pub unavailable: Vec<&'static str>,
 }
 
 /// All chart bodies at UT1 Julian date `jd`, shifted by `shift` degrees (the ayanamsa for
@@ -69,7 +68,6 @@ pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Pla
     let orientation = Orientation::at(&t);
     let orientation_plus = Orientation::at(&t_plus);
     let mut bodies = Vec::with_capacity(14);
-    let mut unavailable = Vec::new();
 
     for (name, code, symbol, can_retrograde) in TARGETS {
         let observed = (|| {
@@ -83,7 +81,6 @@ pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Pla
             ))
         })();
         let Ok(((lat, lon, dist), lon_plus)) = observed else {
-            unavailable.push(name);
             continue;
         };
         let d_lon = pyfloat::rem(lon_plus - lon + 180.0, 360.0) - 180.0;
@@ -124,8 +121,8 @@ pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Pla
         });
     }
 
-    match chiron(jd, shift) {
-        Some(c) => bodies.push(BodyPosition {
+    if let Some(c) = chiron(jd, shift) {
+        bodies.push(BodyPosition {
             name: "Chiron",
             symbol: "⚷",
             longitude: c.longitude,
@@ -133,8 +130,7 @@ pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Pla
             distance: 0.0,
             speed: c.speed,
             is_retrograde: c.is_retrograde,
-        }),
-        None => unavailable.push("Chiron"),
+        });
     }
 
     // Black Moon Lilith: mean lunar apogee projected from the lunar orbit onto the ecliptic.
@@ -158,8 +154,5 @@ pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Pla
         is_retrograde: false,
     });
 
-    Ok(Planets {
-        bodies,
-        unavailable,
-    })
+    Ok(Planets { bodies })
 }

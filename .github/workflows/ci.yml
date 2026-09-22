@@ -119,6 +119,25 @@ jobs:
         if: matrix.target != 'wasm32-unknown-unknown'
         run: cargo check -p astroceleste-engine --lib --target ${{ matrix.target }}
 
+  package:
+    # Builds the crate from its packaged tarball, as crates.io will, so a file missing from
+    # `include` or an oversized package fails here rather than at release time.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo package -p astroceleste-engine
+      - name: package size (crates.io limit is 10 MB)
+        run: |
+          size=$(stat -c %s target/package/astroceleste-engine-*.crate)
+          echo "packaged crate: $size bytes"
+          test "$size" -lt 10000000
+
   python:
     name: python bindings
     runs-on: ubuntu-latest
@@ -143,6 +162,7 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install maturin==1.15.0 pytest
           .venv/bin/maturin build --release -m crates/astroceleste-engine-py/Cargo.toml -o dist
+          .venv/bin/maturin sdist -m crates/astroceleste-engine-py/Cargo.toml -o sdist
           .venv/bin/pip install dist/*.whl
           .venv/bin/pytest -q crates/astroceleste-engine-py/tests
 

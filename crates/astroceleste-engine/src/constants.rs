@@ -9,7 +9,6 @@ pub const DAY_S: f64 = 86_400.0;
 pub const TAU: f64 = 2.0 * PI;
 pub const ASEC2RAD: f64 = 4.848_136_811_095_36e-6;
 pub const ASEC360: f64 = 1_296_000.0;
-pub const DEG2RAD: f64 = PI / 180.0;
 /// Astronomical unit (IAU 2012 Resolution B2).
 pub const AU_M: f64 = 149_597_870_700.0;
 pub const AU_KM: f64 = 149_597_870.700;

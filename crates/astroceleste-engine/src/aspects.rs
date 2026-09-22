@@ -191,6 +191,7 @@ impl OrbSettings {
         Ok(OrbSettings(merged))
     }
 
+    #[cfg(test)]
     pub fn as_map(&self) -> &Map<String, Value> {
         &self.0
     }
@@ -261,31 +262,51 @@ impl OrbSettings {
 /// An aspect between two chart points. Fixed-star conjunctions carry no `is_major`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Aspect {
+    /// First point.
     pub body1: String,
+    /// Second point.
     pub body2: String,
+    /// Aspect name, e.g. "Trine".
     pub aspect_type: &'static str,
+    /// Aspect glyph, e.g. "△".
     pub symbol: &'static str,
+    /// Exact angle of the aspect, in degrees.
     pub angle: f64,
+    /// Distance from exactness, in degrees (rounded to 0.01).
     pub orb: f64,
+    /// Largest orb allowed for this pair and aspect, in degrees.
     pub max_orb: f64,
+    /// Whether it is a major (Ptolemaic) aspect.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_major: Option<bool>,
+    /// Always `true`, as in the reference implementation.
     pub is_applying: bool,
 }
 
 /// A cross-aspect between an overlay body (transit, partner) and a base body (natal).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CrossAspect {
+    /// Overlay point (transit, partner).
     pub body1: String,
+    /// Always "overlay".
     pub body1_source: &'static str,
+    /// Base point (natal).
     pub body2: String,
+    /// Always "base".
     pub body2_source: &'static str,
+    /// Aspect name, e.g. "Trine".
     pub aspect_type: &'static str,
+    /// Aspect glyph, e.g. "△".
     pub symbol: &'static str,
+    /// Exact angle of the aspect, in degrees.
     pub angle: f64,
+    /// Distance from exactness, in degrees (rounded to 0.01).
     pub orb: f64,
+    /// Largest orb allowed for this pair and aspect, in degrees.
     pub max_orb: f64,
+    /// Whether it is a major (Ptolemaic) aspect.
     pub is_major: bool,
+    /// Always `true`, as in the reference implementation.
     pub is_applying: bool,
 }
 

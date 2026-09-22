@@ -8,18 +8,30 @@ use crate::pyfloat;
 use crate::symbolic::symbolic_degree_number;
 use crate::zodiac::{determine_house, longitude_to_zodiac, PRECESSION_RATE_ARCSEC_YEAR};
 
+/// A fixed star conjunct a chart point.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FixedStarPosition {
+    /// Star name, e.g. "Regulus".
     pub name: &'static str,
+    /// Star glyph.
     pub symbol: &'static str,
+    /// Zodiac sign name, e.g. "Taurus".
     pub sign: &'static str,
+    /// Zodiac sign glyph, e.g. "♉".
     pub sign_symbol: &'static str,
+    /// Whole degrees within the sign (0-29).
     pub degree: i64,
+    /// Arc minutes past `degree` (0-59).
     pub minute: i64,
+    /// Ecliptic longitude in degrees [0, 360), tropical or sidereal as requested.
     pub ecliptic_longitude: f64,
+    /// Ecliptic latitude at J2000, in degrees.
     pub ecliptic_latitude: f64,
+    /// House (1-12) the point falls in.
     pub house: u8,
+    /// Apparent visual magnitude.
     pub magnitude: f64,
+    /// Symbolic degree (1-30) within the sign, as used by degree symbolism.
     pub symbolic_degree: i64,
 }
 

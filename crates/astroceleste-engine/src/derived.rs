@@ -11,18 +11,30 @@ use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::zodiac::ZODIAC_SIGNS;
 
+/// Transits to a natal chart (`calculate_transit_chart`).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TransitChart {
+    /// Transiting bodies and angles.
     pub transit_planets: Vec<Placement>,
+    /// House cusps at the transit time and place.
     pub transit_houses: Vec<HouseCusp>,
+    /// Aspects from transiting (overlay) to natal (base) points.
     pub cross_aspects: Vec<CrossAspect>,
+    /// Transit instant, ISO 8601 UTC.
     pub transit_datetime: String,
+    /// Transit latitude in degrees, north positive.
     pub transit_lat: f64,
+    /// Transit longitude in degrees, east positive.
     pub transit_lon: f64,
+    /// "tropical" or "sidereal".
     pub zodiac_type: &'static str,
+    /// Ayanamsa code; `None` for tropical charts.
     pub ayanamsa: Option<&'static str>,
+    /// Human-readable ayanamsa name; `None` for tropical charts.
     pub ayanamsa_name: Option<&'static str>,
+    /// Ayanamsa at the chart instant, in degrees; `None` for tropical charts.
     pub ayanamsa_value: Option<f64>,
+    /// `ayanamsa_value` as degrees, minutes and seconds; `None` for tropical charts.
     pub ayanamsa_formatted: Option<String>,
 }
 
@@ -51,8 +63,10 @@ pub fn calculate_transit_chart(
     })
 }
 
+/// Synastry between two charts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Synastry {
+    /// Aspects from chart B (overlay) to chart A (base).
     pub cross_aspects: Vec<CrossAspect>,
 }
 

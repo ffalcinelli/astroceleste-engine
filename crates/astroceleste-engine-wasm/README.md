@@ -1,5 +1,9 @@
 # astroceleste-engine (WebAssembly)
 
+[![npm](https://img.shields.io/npm/v/astroceleste-engine.svg)](https://www.npmjs.com/package/astroceleste-engine)
+
+> **Experimental (0.0.x):** the API may change in any release. Pin an exact version.
+
 Astrological chart calculation on NASA JPL ephemerides, compiled to WebAssembly from the
 Rust [astroceleste-engine](https://github.com/ffalcinelli/astroceleste-engine). Charts are
 computed entirely in the browser (or Node), identical to the Astroceleste server.

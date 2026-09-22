@@ -52,40 +52,65 @@ fn planet_qualities(planet: &str) -> Option<Q> {
     })
 }
 
+/// The four primary qualities.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Qualities {
+    /// Hot.
     pub hot: f64,
+    /// Cold.
     pub cold: f64,
+    /// Wet.
     pub wet: f64,
+    /// Dry.
     pub dry: f64,
 }
 
+/// The four temperaments.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Scores {
+    /// Choleric (hot and dry).
     pub choleric: f64,
+    /// Sanguine (hot and wet).
     pub sanguine: f64,
+    /// Phlegmatic (cold and wet).
     pub phlegmatic: f64,
+    /// Melancholic (cold and dry).
     pub melancholic: f64,
 }
 
+/// One contribution to the temperament, with its weighted qualities.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Factor {
+    /// What contributes, e.g. "Ascendant Sign".
     pub factor: &'static str,
+    /// The placement behind it, e.g. "Leo (Fire)".
     pub details: String,
+    /// Weighted hot.
     pub hot: f64,
+    /// Weighted cold.
     pub cold: f64,
+    /// Weighted wet.
     pub wet: f64,
+    /// Weighted dry.
     pub dry: f64,
 }
 
+/// Temperament assessment from the chart's qualities.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Temperament {
+    /// Highest-scoring temperament.
     pub primary_temperament: &'static str,
+    /// Second-highest temperament, or "" when it scores zero.
     pub secondary_temperament: &'static str,
+    /// Temperament scores.
     pub scores: Scores,
+    /// Temperament scores as percentages of their total.
     pub percentages: Scores,
+    /// Totals of the four qualities.
     pub qualities: Qualities,
+    /// Quality totals as percentages.
     pub quality_percentages: Qualities,
+    /// Every contributing factor.
     pub breakdown: Vec<Factor>,
 }
 

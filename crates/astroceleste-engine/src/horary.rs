@@ -85,14 +85,22 @@ fn triplicity_ruler(element: &str, is_day: bool) -> Option<&'static str> {
     })
 }
 
+/// Planetary day and hour of a horary chart.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PlanetaryHours {
+    /// Whether the instant falls between sunrise and sunset.
     pub is_day: bool,
+    /// Planet ruling the day (from the weekday of sunrise).
     pub day_ruler: &'static str,
+    /// Planet ruling the hour, in Chaldean order from the day ruler.
     pub hour_ruler: &'static str,
+    /// Planetary hour (1-12) within the day or the night.
     pub hour_number: i64,
+    /// "Day" or "Night".
     pub hour_type: &'static str,
+    /// Sunrise, ISO 8601 UTC (06:00 when it cannot be computed).
     pub sunrise: String,
+    /// Sunset, ISO 8601 UTC (18:00 when it cannot be computed).
     pub sunset: String,
 }
 
@@ -152,31 +160,50 @@ pub fn planetary_hours(
     }
 }
 
+/// A Ptolemaic aspect the Moon perfects before leaving its sign.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ApplyingAspect {
+    /// Planet aspected (Sun to Saturn).
     pub planet: &'static str,
+    /// Aspect name, e.g. "Trine".
     pub aspect: &'static str,
+    /// Degrees the Moon has left to travel to exactness.
     pub degrees_to_exact: f64,
+    /// The Moon's current sign.
     pub target_sign: &'static str,
 }
 
+/// A Ptolemaic aspect the Moon has perfected since entering its sign.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SeparatingAspect {
+    /// Planet aspected (Sun to Saturn).
     pub planet: &'static str,
+    /// Aspect name, e.g. "Trine".
     pub aspect: &'static str,
+    /// Degrees the Moon has travelled since exactness.
     pub degrees_ago: f64,
 }
 
+/// The Moon's condition in a horary chart.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct MoonStatus {
+    /// Whether the Moon makes no applying aspect before leaving its sign.
     pub void_of_course: bool,
+    /// Degrees left in the current sign.
     pub degrees_to_next_sign: f64,
+    /// Hours until the Moon enters the next sign, at its current speed.
     pub hours_to_next_sign: f64,
+    /// Sign the Moon enters next.
     pub next_sign: &'static str,
+    /// "swift" (> 13.5°/day), "slow" (< 12.5°/day) or "average".
     pub speed_status: &'static str,
+    /// Applying aspects, closest first.
     pub applying_aspects: Vec<ApplyingAspect>,
+    /// The closest applying aspect.
     pub next_applying_aspect: Option<ApplyingAspect>,
+    /// The most recent separating aspect.
     pub last_aspect: Option<SeparatingAspect>,
+    /// Separating aspects, most recent first.
     pub separating_aspects: Vec<SeparatingAspect>,
 }
 
@@ -263,29 +290,45 @@ pub fn moon_status(moon: &Placement, planets: &[Placement]) -> MoonStatus {
     }
 }
 
+/// A consideration before judgement (stricture against judging the chart).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Stricture {
+    /// Stable code, e.g. "EARLY_ASC", "MOON_VOC".
     pub code: &'static str,
+    /// "warning" or "info".
     pub severity: &'static str,
+    /// Explanation for the reader, in English.
     pub message: String,
 }
 
+/// The horary-specific part of a horary chart.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct HoraryData {
+    /// Planetary day and hour.
     pub planetary_hours: PlanetaryHours,
+    /// Sign on the Ascendant.
     pub ascendant_sign: &'static str,
+    /// Ascendant as text, e.g. "12° 34' Leo".
     pub ascendant_degree: String,
+    /// Traditional ruler of the Ascendant sign.
     pub traditional_asc_ruler: &'static str,
+    /// Modern ruler of the Ascendant sign.
     pub modern_asc_ruler: &'static str,
+    /// Whether the hour ruler matches the Ascendant's ruler or triplicity ruler.
     pub is_radical: bool,
+    /// Considerations before judgement that apply.
     pub strictures: Vec<Stricture>,
+    /// The Moon's condition.
     pub moon_status: MoonStatus,
 }
 
+/// A horary chart: a complete chart plus `horary_data` (serialized flattened).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct HoraryChart {
+    /// The chart, serialized inline.
     #[serde(flatten)]
     pub chart: Chart,
+    /// Horary-specific data.
     pub horary_data: HoraryData,
 }
 

@@ -1,5 +1,9 @@
 # astroceleste-engine (Python)
 
+[![PyPI](https://img.shields.io/pypi/v/astroceleste-engine.svg)](https://pypi.org/project/astroceleste-engine/)
+
+> **Experimental (0.0.x):** the API may change in any release. Pin an exact version.
+
 Python bindings for [astroceleste-engine](https://github.com/ffalcinelli/astroceleste-engine),
 astrological chart calculation on NASA JPL ephemerides, written in Rust.
 

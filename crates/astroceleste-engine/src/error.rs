@@ -2,13 +2,18 @@ use std::fmt;
 
 use crate::ephemeris::SpkError;
 
+/// Why a calculation failed. [`EngineError::code`] gives the API error code.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum EngineError {
     /// No loaded kernel covers the requested instant (`ephemeris_out_of_range`).
     OutOfRange {
+        /// Requested Julian date.
         jd: f64,
+        /// Combined span of the loaded kernels (Julian dates), `None` when none is loaded.
         coverage: Option<(f64, f64)>,
     },
+    /// A kernel could not be read or evaluated (`ephemeris_error`).
     Ephemeris(SpkError),
     /// Malformed caller input (e.g. a non-numeric orb).
     InvalidInput(String),

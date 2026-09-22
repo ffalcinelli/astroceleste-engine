@@ -6,24 +6,42 @@ use crate::catalog::{LunarMansion, LUNAR_MANSIONS};
 use crate::chart::Placement;
 use crate::pyfloat;
 
+/// Lunar phase, speed, dignity and mansion.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LunarStatus {
+    /// Phase identifier, e.g. "waxing_gibbous".
     pub phase_key: &'static str,
+    /// Phase name, e.g. "Waxing Gibbous".
     pub phase_name: &'static str,
+    /// Quarter (1-4) the phase belongs to.
     pub phase_quarter: u8,
+    /// Phase emoji, e.g. "🌔".
     pub glyph: &'static str,
+    /// Moon's longitude minus the Sun's, degrees [0, 360).
     pub elongation: f64,
+    /// Illuminated fraction of the disc, percent.
     pub illumination_percentage: f64,
+    /// Days since the new Moon (from the elongation and the mean synodic month).
     pub moon_age_days: f64,
+    /// Whether the elongation is below 180°.
     pub is_waxing: bool,
+    /// Sign of the Moon.
     pub moon_sign: &'static str,
+    /// Whole degrees of the Moon within its sign.
     pub moon_degree: i64,
+    /// Arc minutes past `moon_degree`.
     pub moon_minute: i64,
+    /// Moon's ecliptic longitude in degrees.
     pub moon_longitude: f64,
+    /// House (1-12) of the Moon.
     pub moon_house: u8,
+    /// Moon's speed, degrees per day.
     pub moon_speed: f64,
+    /// "swift" (> 13.5°/day), "slow" (< 12.5°/day) or "average".
     pub speed_status: &'static str,
+    /// "Domicile", "Exaltation", "Detriment", "Fall" or "Peregrine".
     pub essential_dignity: &'static str,
+    /// Lunar mansion the Moon is in.
     pub lunar_mansion: LunarMansion,
 }
 
