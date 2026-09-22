@@ -1,18 +1,18 @@
 name: Release
 
-# release-plz keeps a "release PR" open that bumps versions and updates CHANGELOG.md from
-# conventional commits. Merging it tags the release, creates the GitHub Release and
-# publishes to crates.io; the jobs below then publish the Python wheels to PyPI and the
-# WASM package to npm. All three registries use Trusted Publishing (OIDC): no long-lived
-# tokens. crates.io and npm can only trust a workflow for a package that already exists, so
-# the very first release falls back to short-lived secrets (CARGO_REGISTRY_TOKEN in the
-# `release` environment, NPM_TOKEN in `npm`), deleted once trusted publishing is set up.
-# The follow-up jobs hang off this workflow's outputs because tags pushed with
-# GITHUB_TOKEN do not trigger other workflows.
+# Trunk-based: pushing a `vX.Y.Z` tag on a commit of `main` publishes that version. The tag
+# must match the workspace version in Cargo.toml and CHANGELOG.md must have a `## [X.Y.Z]`
+# section (both prepared in a `chore: release` commit, e.g. with `release-plz update`).
+# The `release` job publishes the crate to crates.io and creates the GitHub Release; the
+# jobs below publish the Python wheels to PyPI and the WASM package to npm. All three
+# registries use Trusted Publishing (OIDC): no long-lived tokens. crates.io and npm can only
+# trust a workflow for a package that already exists, so the very first release falls back
+# to short-lived secrets (CARGO_REGISTRY_TOKEN in the `release` environment, NPM_TOKEN in
+# `npm`), deleted once trusted publishing is set up.
 
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -26,9 +26,6 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    outputs:
-      created: ${{ steps.release-plz.outputs.releases_created }}
-      tag: ${{ steps.release-plz.outputs.releases_created == 'true' && fromJSON(steps.release-plz.outputs.releases)[0].tag || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,22 +34,41 @@ jobs:
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: stable
+      - name: check tag, version and changelog
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::$TAG is not on main"; exit 1; }
+          version=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "astroceleste-engine") | .version')
+          [ "$TAG" = "v$version" ] \
+            || { echo "::error::tag $TAG does not match Cargo.toml version $version"; exit 1; }
+          # Release notes: the body of the `## [X.Y.Z]` section, up to the next section.
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" \
+            || { echo "::error::CHANGELOG.md has no entry for $version"; exit 1; }
       - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
         id: auth
         # Fails until trusted publishing is configured (first release): use the secret.
         continue-on-error: true
-      - uses: release-plz/action@b8d6b54b02889ff2ae2bb82e8b57c3a8fc1683a5 # v0.5.139
-        id: release-plz
-        with:
-          command: release
+      - name: publish to crates.io
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token || secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p astroceleste-engine
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
 
   wheels:
     name: wheel (${{ matrix.os }}, ${{ matrix.target }})
     needs: release
-    if: needs.release.outputs.created == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -64,7 +80,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release.outputs.tag }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -82,12 +97,10 @@ jobs:
 
   sdist:
     needs: release
-    if: needs.release.outputs.created == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release.outputs.tag }}
           persist-credentials: false
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
@@ -116,7 +129,6 @@ jobs:
   npm:
     name: publish to npm
     needs: release
-    if: needs.release.outputs.created == 'true'
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -125,7 +137,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release.outputs.tag }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
@@ -146,29 +157,3 @@ jobs:
         run: |
           npm pkg set name=astroceleste-engine
           npm publish --provenance --access public
-
-  release-pr:
-    name: release PR
-    if: github.repository_owner == 'ffalcinelli'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    concurrency:
-      group: release-plz-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
-        with:
-          toolchain: stable
-      - uses: release-plz/action@b8d6b54b02889ff2ae2bb82e8b57c3a8fc1683a5 # v0.5.139
-        with:
-          command: release-pr
-        env:
-          # PRs opened with GITHUB_TOKEN do not trigger CI. To run CI on the release PR,
-          # swap this for a GitHub App or fine-grained token with contents+PR write.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

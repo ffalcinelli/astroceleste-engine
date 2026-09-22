@@ -93,7 +93,9 @@ Fixture comparison lives in `tests/common/mod.rs` (`diff`, `strip_private`). Key
   (`deny.toml`, checked by cargo-deny in CI). No C code, no platform-specific I/O in the core: it
   must build for `wasm32-unknown-unknown`, Android and iOS.
 - MSRV is 1.85 (`rust-version` in `Cargo.toml`, also pinned in CI's test matrix).
-- Commits follow Conventional Commits; release-plz derives versions and `CHANGELOG.md` from them.
+- Commits follow Conventional Commits; `release-plz update` (run locally) derives the version bump
+  and `CHANGELOG.md` from them. Releases are trunk-based: pushing a `vX.Y.Z` tag on `main`
+  runs `release.yml`, which checks the tag against `Cargo.toml` and the changelog, then publishes.
   The version is 0.0.x (experimental, breaking changes allowed). One workspace version is shared
   by the crate, the PyPI wheel (maturin reads it from Cargo) and the npm package (wasm-pack);
   the bindings' path dependency `version = "…"` must match it. Only the core crate goes to

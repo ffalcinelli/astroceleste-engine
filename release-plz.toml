@@ -1,7 +1,8 @@
+# Used locally by `release-plz update` to bump the version and write CHANGELOG.md from
+# Conventional Commits. Publishing happens in CI when a `vX.Y.Z` tag is pushed
+# (.github/workflows/release.yml), not through release-plz.
 [workspace]
 changelog_update = true
-git_release_enable = true
-git_tag_name = "v{{ version }}"
 # Versions follow the core crate; bindings crates join the same release train.
 dependencies_update = false
 
@@ -10,7 +11,9 @@ dependencies_update = false
 [[package]]
 name = "astroceleste-engine-py"
 release = false
+publish = false
 
 [[package]]
 name = "astroceleste-engine-wasm"
 release = false
+publish = false

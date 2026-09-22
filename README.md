@@ -82,17 +82,25 @@ node crates/astroceleste-engine-wasm/tests/golden.mjs
 
 ## Releasing
 
-Releases are automated with [release-plz](https://release-plz.dev):
+Releases are trunk-based: there are no release branches or release PRs. Pushing a
+`vX.Y.Z` tag on `main` publishes that version.
 
 1. Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org)
    (`feat:`, `fix:`, `perf:`, `refactor:`, … and `!` for breaking changes). While the
    version is 0.0.x, `feat`/`fix` bump the patch version and a breaking change bumps the
    minor version.
-2. The `Release` workflow keeps a release PR open. It bumps the version and updates
-   `CHANGELOG.md`.
-3. Merging that PR tags `vX.Y.Z`, creates the GitHub Release and publishes the crate to
-   crates.io, the Python wheels (Linux x86_64/aarch64, macOS universal2, Windows x64, sdist)
-   to PyPI and the WebAssembly package to npm.
+2. Prepare the release on `main`: run `release-plz update` (or edit by hand) to bump the
+   workspace version, the bindings' `astroceleste-engine` dependency version and
+   `CHANGELOG.md`, then commit as `chore: release vX.Y.Z` and push.
+3. Once CI is green, tag that commit and push the tag:
+   `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. The `Release` workflow checks that the tag is on `main`, matches the version in
+   `Cargo.toml` and has a `CHANGELOG.md` entry. It then publishes the crate to crates.io,
+   creates the GitHub Release from the changelog entry, and publishes the Python wheels
+   (Linux x86_64/aarch64, macOS universal2, Windows x64, sdist) to PyPI and the
+   WebAssembly package to npm.
+
+Protect `v*` tags with a tag ruleset so only maintainers can trigger a release.
 
 All three registries use Trusted Publishing (OIDC), so no long-lived token is stored.
 crates.io and npm can only trust a workflow for a package that already exists, so the
@@ -107,14 +115,11 @@ first release uses short-lived tokens instead:
    it as the `NPM_TOKEN` secret of the `npm` environment.
 4. **PyPI**: add a *pending* trusted publisher for project `astroceleste-engine` (workflow
    `release.yml`, environment `pypi`). No token is needed.
-5. Push to `main`. The workflow publishes the version in `Cargo.toml`.
+5. Push the `vX.Y.Z` tag for the version in `Cargo.toml`.
 6. Once the packages exist, add the trusted publisher on crates.io (crate settings →
    *Trusted Publishing*: this repository, workflow `release.yml`, environment `release`)
    and on npm (package settings: workflow `release.yml`, environment `npm`). Then delete
    both secrets and revoke the tokens. The workflow prefers OIDC whenever it is available.
-
-Release PRs opened with the default `GITHUB_TOKEN` do not trigger CI. To get CI on them,
-use a GitHub App or fine-grained token in the `release-pr` job.
 
 ## Ephemerides
 

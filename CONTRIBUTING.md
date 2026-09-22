@@ -25,6 +25,6 @@ dependency-light and permissively licensed (`deny.toml`). It must keep building 
 
 ## Commits
 
-Use [Conventional Commits](https://www.conventionalcommits.org): release-plz derives versions
-and the changelog from them. By contributing you agree to license your work under
-MIT OR Apache-2.0.
+Use [Conventional Commits](https://www.conventionalcommits.org): `release-plz update` derives
+the version bump and the changelog from them. By contributing you agree to license your work
+under MIT OR Apache-2.0.
