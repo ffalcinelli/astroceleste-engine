@@ -8,6 +8,9 @@ Astrological chart calculation on NASA JPL ephemerides, compiled to WebAssembly 
 Rust [astroceleste-engine](https://github.com/ffalcinelli/astroceleste-engine). Charts are
 computed entirely in the browser (or Node), identical to the Astroceleste server.
 
+[Try the live demo](https://ffalcinelli.github.io/astroceleste-engine/) ·
+[API guide](https://github.com/ffalcinelli/astroceleste-engine/blob/main/docs/api.md)
+
 ```js
 import init, { Engine, synastry, derivedChart } from "astroceleste-engine";
 
