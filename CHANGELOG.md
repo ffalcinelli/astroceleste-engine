@@ -8,6 +8,20 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.3]
+
+### Added
+
+- Koch, Regiomontanus, Campanus, Topocentric, Alcabitius, Morinus and Vehlow house
+  systems. These codes used to fall back to Placidus silently; Koch now falls back to
+  Porphyry inside the polar circles, where it is undefined.
+- Landing site with a live WebAssembly demo, API guide and architecture docs, security
+  policy and an expanded contributing guide.
+
+### Fixed
+
+- The npm package now ships the licenses and NOTICE (Skyfield's MIT notice).
+
 ## [0.0.2]
 
 ### Added
