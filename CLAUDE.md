@@ -32,6 +32,9 @@ pytest crates/astroceleste-engine-py/tests
 # WASM bindings
 wasm-pack build --target nodejs --out-dir pkg-node crates/astroceleste-engine-wasm
 node crates/astroceleste-engine-wasm/tests/golden.mjs
+
+# Landing site + live demo (needs wasm-pack): builds target/site, deployed by pages.yml
+scripts/build-site.sh && python3 -m http.server -d target/site
 ```
 
 The golden tests (`golden_chart`, `golden_horary`, `golden_derived`) **silently skip** (print
@@ -62,6 +65,13 @@ Core pipeline (`crates/astroceleste-engine/src`):
   `derived.rs` builds transits, synastry and derived charts on top of `calculate_chart`.
 - `catalog/` — static tables (fixed stars, lunar mansions, derived-house meanings), generated
   code excluded from rustfmt/clippy.
+
+Docs outside rustdoc: `docs/` (API guide, ephemerides, accuracy, architecture), `CONTRIBUTING.md`,
+`SECURITY.md`, `RELEASING.md`. `site/` is the static landing page with a WASM demo (`demo.js`
+imports `pkg/astroceleste_engine_wasm.js` and loads a 1950–2050 excerpt; the range is set in
+`scripts/build-site.sh`). When options, ayanamsas, entry points or the result shape change,
+update `docs/api.md` and the demo form too. README is also the crates.io readme: link repo files
+with absolute GitHub URLs.
 
 The public API is curated: every module is private except `ephemeris`, and `lib.rs` re-exports
 the entry points, `ChartRequest`, `EngineError`, `UtcInstant` and every type reachable from a

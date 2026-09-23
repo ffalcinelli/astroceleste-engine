@@ -7,6 +7,9 @@
 Python bindings for [astroceleste-engine](https://github.com/ffalcinelli/astroceleste-engine),
 astrological chart calculation on NASA JPL ephemerides, written in Rust.
 
+[Website and live demo](https://ffalcinelli.github.io/astroceleste-engine/) ·
+[API guide](https://github.com/ffalcinelli/astroceleste-engine/blob/main/docs/api.md)
+
 ```python
 from datetime import datetime, timezone
 import astroceleste_engine as ace
