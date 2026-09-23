@@ -22,14 +22,15 @@ derived charts work on already computed charts and do not.
 | moment | UTC instant: `UtcInstant` in Rust, `datetime` or ISO string in Python, ISO string `utc` in JS | required |
 | latitude | geographic latitude in degrees, north positive | required |
 | longitude | geographic longitude in degrees, east positive | required |
-| house system | `P` Placidus, `W` Whole Sign, `E` Equal, `O` Porphyry | `P` |
+| house system | `P` Placidus, `K` Koch, `R` Regiomontanus, `C` Campanus, `T` Topocentric (Polich-Page), `B` Alcabitius, `M` Morinus, `O` Porphyry, `E` Equal, `V` Vehlow, `W` Whole Sign (the Swiss Ephemeris letters) | `P` |
 | zodiac type | `tropical` or `sidereal` | `tropical` |
 | ayanamsa | sidereal reference, see below (ignored for tropical charts) | `galcent_0sag` |
 | orb settings | overrides merged over the default orbs, see below | none |
 
 Times are always UTC. Convert civil time (with its time zone and daylight saving time) to
 UTC before calling the engine. Only the first letter of the house system is used, and
-unknown codes fall back to Placidus. Zodiac types other than `sidereal` are tropical.
+unknown codes fall back to Placidus. Koch falls back to Porphyry inside the polar circles,
+where it is undefined. Morinus cusps 1 and 10 are not the Ascendant and Midheaven. Zodiac types other than `sidereal` are tropical.
 
 ```rust
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};

@@ -19,7 +19,8 @@ on the server (Python bindings), in the desktop and mobile apps (native) and in 
 
 > Status: the complete chart pipeline is ported and matches the reference implementation
 > on every golden chart: planets, lunar nodes, Chiron, Lilith, houses (Placidus, Whole Sign,
-> Equal, Porphyry), aspects and orbs, fixed stars, Arabic parts, temperament, lunar status,
+> Equal, Porphyry; Koch, Regiomontanus, Campanus, Topocentric, Alcabitius, Morinus and Vehlow
+> are checked against Swiss Ephemeris), aspects and orbs, fixed stars, Arabic parts, temperament, lunar status,
 > horary charts (planetary hours from computed sunrise and sunset), transits, synastry and
 > derived charts, with Python and WebAssembly bindings.
 

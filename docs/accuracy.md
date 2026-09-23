@@ -16,6 +16,10 @@ every key. Three independent references check that.
 | `transits.json`, `synastry.json`, `derived.json` | 27 each |
 | `errors.json` | dates before and after the kernel (1700, 2200) |
 
+The reference implementation only had Placidus, Whole Sign, Equal and Porphyry. The other
+house systems are unit-tested against Swiss Ephemeris (`src/houses.rs`, within 1′), and the
+application cross-checks them at several latitudes.
+
 The engine must reproduce them with:
 
 - floats within 1e-9 (relative to magnitude, absolute below 1);
