@@ -108,6 +108,12 @@ Licensed under either of
 
 at your option.
 
+The astronomical reduction (ΔT, IAU 2000A nutation, IAU 2006 precession, light-time,
+deflection and aberration) is ported from [Skyfield](https://github.com/skyfielders/python-skyfield)
+by Brandon Rhodes, used under the MIT license: see
+[NOTICE](https://github.com/ffalcinelli/astroceleste-engine/blob/main/NOTICE), which is shipped in
+every package.
+
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion
 in this work, as defined in the Apache-2.0 license, shall be dual licensed as above, without
 any additional terms or conditions.
