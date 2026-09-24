@@ -8,6 +8,19 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.4]
+
+### Added
+
+- Electional astrology. `calculate_election_chart` scores a moment by the traditional
+  electional rules and returns stable factor codes with weights. The rules cover the Moon,
+  the Ascendant and its ruler, benefics and malefics on the angles, retrograde Mercury and
+  Venus, the house of the matter and its significator, the planetary hour and, optionally,
+  contacts with a natal chart. `search_elections` finds the best windows over up to 92 days
+  at a place, with purpose presets and filters (void-of-course Moon, retrogrades, daytime,
+  local hours with daylight saving time). Python: `Engine.election` / `Engine.elections`.
+  JavaScript: `engine.election` / `engine.elections`.
+
 ## [0.0.3]
 
 ### Added
