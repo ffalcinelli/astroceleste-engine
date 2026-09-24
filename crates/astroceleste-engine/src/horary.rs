@@ -17,7 +17,7 @@ const CHALDEAN_ORDER: [&str; 7] = [
 const DAY_RULERS: [&str; 7] = [
     "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Sun",
 ];
-const SIGNS: [&str; 12] = [
+pub(crate) const SIGNS: [&str; 12] = [
     "Aries",
     "Taurus",
     "Gemini",
@@ -31,7 +31,7 @@ const SIGNS: [&str; 12] = [
     "Aquarius",
     "Pisces",
 ];
-const PTOLEMAIC: [(f64, &str); 5] = [
+pub(crate) const PTOLEMAIC: [(f64, &str); 5] = [
     (0.0, "Conjunction"),
     (60.0, "Sextile"),
     (90.0, "Square"),
@@ -39,7 +39,7 @@ const PTOLEMAIC: [(f64, &str); 5] = [
     (180.0, "Opposition"),
 ];
 
-fn traditional_ruler(sign: &str) -> Option<&'static str> {
+pub(crate) fn traditional_ruler(sign: &str) -> Option<&'static str> {
     Some(match sign {
         "Aries" | "Scorpio" => "Mars",
         "Taurus" | "Libra" => "Venus",
@@ -61,7 +61,7 @@ fn modern_ruler(sign: &str) -> Option<&'static str> {
     })
 }
 
-fn element(sign: &str) -> Option<&'static str> {
+pub(crate) fn element(sign: &str) -> Option<&'static str> {
     Some(match sign {
         "Aries" | "Leo" | "Sagittarius" => "Fire",
         "Taurus" | "Virgo" | "Capricorn" => "Earth",
@@ -71,7 +71,7 @@ fn element(sign: &str) -> Option<&'static str> {
     })
 }
 
-fn triplicity_ruler(element: &str, is_day: bool) -> Option<&'static str> {
+pub(crate) fn triplicity_ruler(element: &str, is_day: bool) -> Option<&'static str> {
     Some(match (element, is_day) {
         ("Fire", true) => "Sun",
         ("Earth", true) => "Venus",
@@ -104,6 +104,67 @@ pub struct PlanetaryHours {
     pub sunset: String,
 }
 
+/// The sunrise at or before an instant (with the reference's slack), the sunset after it
+/// and the next sunrise: the day planetary hours are counted in.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct SolarDay {
+    pub sunrise: UtcInstant,
+    pub sunset: UtcInstant,
+    pub next_sunrise: UtcInstant,
+    /// Whether the times were computed, rather than the 06:00/18:00 UTC stand-ins.
+    pub computed: bool,
+}
+
+/// How far past an instant `rise_set` still takes a sunrise as the day's, in days.
+const SUNRISE_SLACK_DAYS: f64 = 0.05;
+
+/// The Julian date sunrise and sunset searches take for an instant.
+pub(crate) fn jd_utc(instant: UtcInstant) -> f64 {
+    2_451_545.0 + instant.seconds_since(&UtcInstant::J2000) / 86_400.0
+}
+
+impl SolarDay {
+    /// From computed (sunrise, sunset, next sunrise) UT1 Julian dates.
+    pub fn from_julian_days((rise, set, next): (f64, f64, f64)) -> Self {
+        let at = |jd: f64| UtcInstant::J2000.plus_days(jd - 2_451_545.0);
+        SolarDay {
+            sunrise: at(rise),
+            sunset: at(set),
+            next_sunrise: at(next),
+            computed: true,
+        }
+    }
+
+    /// Whether [`solar_day`] would return this same day for `instant`, so a search can
+    /// reuse it instead of finding the sunrise again (always false for stand-in times).
+    pub fn covers(&self, instant: UtcInstant) -> bool {
+        let probe = instant.plus_days(SUNRISE_SLACK_DAYS);
+        self.computed && self.sunrise <= probe && probe < self.next_sunrise
+    }
+}
+
+/// The solar day of `instant` for a place. Where the times cannot be computed, 06:00
+/// and 18:00 UTC stand in.
+pub(crate) fn solar_day(
+    kernels: &KernelSet,
+    instant: UtcInstant,
+    latitude: f64,
+    longitude: f64,
+) -> SolarDay {
+    match rise_set(kernels, jd_utc(instant), latitude, longitude) {
+        Ok(times) => SolarDay::from_julian_days(times),
+        Err(_) => {
+            let rise = instant.with_time(6, 0, 0, 0);
+            SolarDay {
+                sunrise: rise,
+                sunset: instant.with_time(18, 0, 0, 0),
+                next_sunrise: rise.add_micros(86_400_000_000),
+                computed: false,
+            }
+        }
+    }
+}
+
 /// Planetary day and hour at `instant` for a place, from the actual sunrise and sunset.
 /// Where they cannot be computed, 06:00 and 18:00 UTC stand in.
 pub fn planetary_hours(
@@ -112,21 +173,17 @@ pub fn planetary_hours(
     latitude: f64,
     longitude: f64,
 ) -> PlanetaryHours {
-    let jd_utc = 2_451_545.0 + instant.seconds_since(&UtcInstant::J2000) / 86_400.0;
-    let (sunrise, sunset, next_sunrise) = match rise_set(kernels, jd_utc, latitude, longitude) {
-        Ok((rise, set, next)) => {
-            let at = |jd: f64| UtcInstant::J2000.plus_days(jd - 2_451_545.0);
-            (at(rise), at(set), at(next))
-        }
-        Err(_) => {
-            let rise = instant.with_time(6, 0, 0, 0);
-            (
-                rise,
-                instant.with_time(18, 0, 0, 0),
-                rise.add_micros(86_400_000_000),
-            )
-        }
-    };
+    hours_in(&solar_day(kernels, instant, latitude, longitude), instant)
+}
+
+/// Planetary day and hour at `instant`, within its solar day.
+pub(crate) fn hours_in(day: &SolarDay, instant: UtcInstant) -> PlanetaryHours {
+    let SolarDay {
+        sunrise,
+        sunset,
+        next_sunrise,
+        ..
+    } = *day;
 
     let is_day = sunrise <= instant && instant <= sunset;
     let day_ruler = DAY_RULERS[sunrise.weekday() as usize];

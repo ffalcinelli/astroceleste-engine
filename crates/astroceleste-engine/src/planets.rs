@@ -54,6 +54,15 @@ pub struct Planets {
 /// All chart bodies at UT1 Julian date `jd`, shifted by `shift` degrees (the ayanamsa for
 /// sidereal charts, 0 for tropical).
 pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Planets, EngineError> {
+    Ok(planets_and_sidereal_time(kernels, jd, shift)?.0)
+}
+
+/// [`calculate_planets`], with the Greenwich apparent sidereal time (hours) at `jd`.
+pub fn planets_and_sidereal_time(
+    kernels: &KernelSet,
+    jd: f64,
+    shift: f64,
+) -> Result<(Planets, f64), EngineError> {
     let t = Time::from_ut1(jd);
     // One hour later, for the apparent speed and the retrograde flag.
     let t_plus = Time::from_ut1(t.ut1() + 1.0 / 24.0);
@@ -154,5 +163,5 @@ pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Pla
         is_retrograde: false,
     });
 
-    Ok(Planets { bodies })
+    Ok((Planets { bodies }, orientation.gast_hours))
 }

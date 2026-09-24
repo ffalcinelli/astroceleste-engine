@@ -62,7 +62,11 @@ Core pipeline (`crates/astroceleste-engine/src`):
 - `planets.rs` → `houses.rs` / `zodiac.rs` (signs, ayanamsa, sidereal) → `aspects.rs`,
   `fixed_stars.rs`, `lots.rs`, `temperament.rs`, `lunar.rs` → assembled in `chart.rs`
   (`calculate_chart`). `horary.rs` adds planetary hours (via `almanac.rs` sunrise/sunset);
-  `derived.rs` builds transits, synastry and derived charts on top of `calculate_chart`.
+  `derived.rs` builds transits, synastry and derived charts on top of `calculate_chart`;
+  `election.rs` scores moments by electional rules (stable factor codes, no wording) and
+  searches spans. Its search interpolates between hourly exact positions (`Sampler`) and
+  re-assesses each window's best moment exactly. Keep the lean `chart::sky` path identical to
+  `calculate_chart`'s positions.
 - `catalog/` — static tables (fixed stars, lunar mansions, derived-house meanings), generated
   code excluded from rustfmt/clippy.
 

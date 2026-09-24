@@ -34,6 +34,8 @@
 //! | [`calculate_transit_chart`] | the sky at a moment and place, with its [`CrossAspect`]s to natal planets |
 //! | [`calculate_synastry`] | cross-aspects between two charts' planets (no kernel needed) |
 //! | [`calculate_derived_chart`] | a stored chart turned to a new first house (no kernel needed) |
+//! | [`calculate_election_chart`] | the chart plus [`ElectionData`]: an electional score with the rules that apply |
+//! | [`search_elections`] | the best [`ElectionWindow`]s over a span of time at a place |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
 //! Astroceleste API, with the same key order and the same integer vs float types. The
@@ -113,6 +115,7 @@ mod chart;
 mod chiron;
 mod constants;
 mod derived;
+mod election;
 pub mod ephemeris;
 mod error;
 mod fixed_stars;
@@ -136,6 +139,11 @@ pub use catalog::LunarMansion;
 pub use chart::{calculate_chart, Chart, ChartRequest, HouseCusp, Placement};
 pub use derived::{
     calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,
+};
+pub use election::{
+    calculate_election_chart, search_elections, CriteriaSummary, ElectionChart, ElectionCriteria,
+    ElectionData, ElectionFactor, ElectionSearch, ElectionWindow, Exclusions, HourRange,
+    NatalPoint, Purpose, UtcOffset, MAX_SEARCH_DAYS,
 };
 pub use error::EngineError;
 pub use fixed_stars::FixedStarPosition;

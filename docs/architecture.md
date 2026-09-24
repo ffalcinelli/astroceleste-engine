@@ -40,6 +40,8 @@ and iOS.
                                   │
    horary.rs ───── + planetary hours (almanac.rs sunrise/sunset), significators, strictures
    derived.rs ──── transits, synastry, derived charts on top of calculate_chart
+   election.rs ─── electional score of a moment; search over a span (interpolated between
+                   hourly exact positions, sunrises found once for the span)
 ```
 
 Supporting modules:

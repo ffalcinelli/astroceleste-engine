@@ -155,7 +155,55 @@ pub fn rise_set(
     let t_start = Time::from_ut1(jd_utc - 1.5);
     let t_end = Time::from_ut1(jd_utc + 1.5);
     let events = find_transitions(kernel, &site, t_start.tt(), t_end.tt())?;
+    Ok(select_rise_set(&events, jd_utc))
+}
 
+/// Sunrises and sunsets over a span, found once for all the days in it.
+pub(crate) struct SunEvents {
+    /// (TT Julian date, whether it is a sunrise), in time order.
+    events: Vec<(f64, bool)>,
+    /// TT span searched.
+    span: (f64, f64),
+}
+
+impl SunEvents {
+    /// Every sunrise and sunset from UT1 Julian date `jd0` to `jd1`, when a single kernel
+    /// covers the whole span (`None` otherwise).
+    pub fn find(
+        kernels: &KernelSet,
+        jd0: f64,
+        jd1: f64,
+        latitude: f64,
+        longitude: f64,
+    ) -> Result<Option<Self>, EngineError> {
+        let kernel = require_kernel(kernels, jd0)?;
+        if !(kernel.start_jd..=kernel.end_jd).contains(&jd1) {
+            return Ok(None);
+        }
+        let site = Site::new(latitude, longitude);
+        let span = (Time::from_ut1(jd0).tt(), Time::from_ut1(jd1).tt());
+        let events = find_transitions(kernel, &site, span.0, span.1)?;
+        Ok(Some(SunEvents { events, span }))
+    }
+
+    /// [`rise_set`] for `jd_utc`, from the events of its ±1.5 day window; `None` when
+    /// the window is not inside the span searched.
+    pub fn rise_set(&self, jd_utc: f64) -> Option<(f64, f64, f64)> {
+        let (t0, t1) = (
+            Time::from_ut1(jd_utc - 1.5).tt(),
+            Time::from_ut1(jd_utc + 1.5).tt(),
+        );
+        if t0 < self.span.0 || t1 > self.span.1 {
+            return None;
+        }
+        let from = self.events.partition_point(|e| e.0 < t0);
+        let to = self.events.partition_point(|e| e.0 <= t1);
+        Some(select_rise_set(&self.events[from..to], jd_utc))
+    }
+}
+
+/// The day's sunrise, sunset and next sunrise among the events around `jd_utc`.
+fn select_rise_set(events: &[(f64, bool)], jd_utc: f64) -> (f64, f64, f64) {
     let ut1 = |jd_tt: f64| Time::from_tt_jd(jd_tt).ut1();
     let sunrises: Vec<f64> = events.iter().filter(|e| e.1).map(|e| ut1(e.0)).collect();
     let sunsets: Vec<f64> = events.iter().filter(|e| !e.1).map(|e| ut1(e.0)).collect();
@@ -176,5 +224,5 @@ pub fn rise_set(
         .copied()
         .find(|&s| s > rise + 0.1)
         .unwrap_or(rise + 1.0);
-    Ok((rise, set, next_rise))
+    (rise, set, next_rise)
 }

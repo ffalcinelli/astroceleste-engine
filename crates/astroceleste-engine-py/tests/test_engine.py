@@ -121,3 +121,29 @@ def test_golden_transits_synastry_derived():
         base = natal[case["input"]["base"]]
         actual = ace.derived_chart(base, case["input"]["root_house"])
         assert_same(strip_private(actual), case["output"], case["input"]["base"], tol=0.0)
+
+
+def test_election_criteria_are_validated(excerpt):
+    with pytest.raises(ValueError, match="unknown variant"):
+        excerpt.election("2000-06-01T12:00:00Z", 41.9, 12.5, {"purpose": "war"})
+    with pytest.raises(ValueError, match="at most"):
+        excerpt.elections("2000-01-01T00:00:00Z", "2000-06-01T00:00:00Z", 41.9, 12.5)
+
+
+def test_election_and_search(excerpt):
+    chart = excerpt.election("2000-06-01T12:00:00Z", 41.9, 12.5, {"purpose": "contract"})
+    data = chart["election_data"]
+    assert chart["planets"] and 0 <= data["score"] <= 100
+    assert data["purpose"] == "contract"
+    assert {"code", "weight", "planet", "target", "aspect", "house", "sign"} <= set(data["factors"][0])
+
+    result = excerpt.elections(
+        datetime(2000, 6, 1, tzinfo=timezone.utc), "2000-06-08T00:00:00Z", 41.9, 12.5, {"step_minutes": 30}
+    )
+    assert result["criteria"]["step_minutes"] == 30
+    assert result["evaluated"] > 0
+    for window in result["windows"]:
+        assert window["start"] <= window["best"] <= window["end"]
+        best = excerpt.election(window["best"], 41.9, 12.5)["election_data"]
+        assert best["score"] == window["score"]
+    json.dumps(result)

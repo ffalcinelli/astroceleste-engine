@@ -1,6 +1,6 @@
 # API guide
 
-The engine has the same five entry points in every language. Requests and results have the
+The engine has the same entry points in every language. Requests and results have the
 same shape everywhere: results serialize to the JSON of the Astroceleste API, with
 snake_case keys.
 
@@ -11,6 +11,8 @@ snake_case keys.
 | `calculate_transit_chart` | `Engine.transit` | `engine.transit` |
 | `calculate_synastry` | `synastry` | `synastry` |
 | `calculate_derived_chart` | `derived_chart` | `derivedChart` |
+| `calculate_election_chart` | `Engine.election` | `engine.election` |
+| `search_elections` | `Engine.elections` | `engine.elections` |
 
 Every calculation needs JPL kernels (see [Ephemerides](ephemerides.md)); synastry and
 derived charts work on already computed charts and do not.
@@ -167,6 +169,67 @@ docs.rs.
 - **Synastry**: cross-aspects from chart B's `planets` to chart A's `planets`.
 - **Derived chart**: a stored chart turned so that radix house *n* (1–12) becomes the first
   house, with the meaning of each derived house. Fields that are not turned are kept.
+
+## Elections
+
+Electional astrology looks for a good moment to begin something. `calculate_election_chart`
+returns the chart of a moment plus `election_data`, and `search_elections` scans a span of
+up to 92 days at a place for the best windows.
+
+```python
+engine.election("2026-12-21T01:00:00Z", 41.9, 12.5, {"purpose": "launch"})
+engine.elections("2026-12-01T00:00:00Z", "2026-12-31T00:00:00Z", 41.9, 12.5,
+                 {"purpose": "contract", "daytime_only": True})
+```
+
+```js
+engine.election({ utc: "2026-12-21T01:00:00Z", latitude: 41.9, longitude: 12.5 }, { purpose: "launch" });
+engine.elections({ utc: "2026-12-01T00:00:00Z", latitude: 41.9, longitude: 12.5 },
+                 "2026-12-31T00:00:00Z", { purpose: "contract", daytime_only: true });
+```
+
+The criteria object is optional. Every field has a default, and unknown fields are
+rejected (`invalid_input`):
+
+| Field | Meaning | Default |
+|---|---|---|
+| `purpose` | `general`, `contract`, `partnership`, `travel`, `health`, `finance`, `launch`, `career`: sets the house of the matter, its natural significator and the favourable planetary hours | `general` |
+| `avoid_void_moon` | leave out moments with the Moon void of course | `true` |
+| `avoid_mercury_retrograde` | leave out moments with Mercury retrograde | `true` for contract, travel, launch |
+| `avoid_venus_retrograde` | leave out moments with Venus retrograde | `true` for partnership |
+| `daytime_only` | leave out moments between sunset and sunrise | `false` |
+| `local_hours` | `{from, to}` local clock hours to search (`from > to` spans midnight) | any hour |
+| `utc_offsets` | `[{from, minutes}]`: the local UTC offset from each instant on, for `local_hours` (daylight saving time included) | UTC |
+| `step_minutes` | minutes between assessed moments (5-60) | 10 |
+| `min_score` | lowest score a window keeps | 60 |
+| `max_results` | most windows returned (1-50) | 20 |
+| `natal` | a natal chart's `planets` (`name`, `ecliptic_longitude`) to elect for | none |
+
+`election_data` holds a `score` from 0 to 100 (50 plus the factors' weights) and a
+`verdict`: `favourable` from 65, `mixed` from 45, `unfavourable` below. It also holds
+the `factors` that apply (`code`, `weight`, and `planet`, `target`, `aspect`, `house`,
+`sign` where relevant), `excluded_by` (the criteria filters the moment fails), and
+`planetary_hours` and `moon_status` as in horary charts. Factor codes are stable, and
+wording is left to the application:
+
+| Group | Codes |
+|---|---|
+| Moon | `MOON_VOC`, `MOON_COMBUST`, `MOON_WAXING`, `MOON_VIA_COMBUSTA`, `MOON_DIGNIFIED`, `MOON_DEBILITATED`, `MOON_SWIFT`, `MOON_SLOW`, `MOON_ANGULAR`, `MOON_IN_DARK_HOUSE`, `MOON_APPLYING_BENEFIC`, `MOON_APPLYING_MALEFIC`, `MOON_APPLYING_SIGNIFICATOR` |
+| Ascendant | `ASC_EARLY`, `ASC_LATE`, `ASC_RULER_DIGNIFIED`, `ASC_RULER_DEBILITATED`, `ASC_RULER_ANGULAR`, `ASC_RULER_IN_DARK_HOUSE`, `ASC_RULER_RETROGRADE`, `ASC_RULER_COMBUST` |
+| Angles | `BENEFIC_IN_1ST`, `BENEFIC_ANGULAR`, `MALEFIC_IN_1ST`, `MALEFIC_ANGULAR` |
+| Retrogrades | `MERCURY_RETROGRADE`, `VENUS_RETROGRADE` |
+| The matter | `HOUSE_RULER_*` and `SIGNIFICATOR_*` (`DIGNIFIED`, `DEBILITATED`, `ANGULAR`, `IN_DARK_HOUSE`, `RETROGRADE`, `COMBUST`) |
+| Hour | `HOUR_RULER_FAVOURS_PURPOSE`, `HOUR_RULER_MALEFIC` |
+| Natal | `NATAL_ASC_WELL_PLACED`, `NATAL_ASC_BADLY_PLACED`, `NATAL_BENEFIC_CONTACT`, `NATAL_MALEFIC_CONTACT`, `NATAL_MOON_TO_BENEFIC`, `NATAL_MOON_TO_MALEFIC` |
+
+A search assesses a moment every `step_minutes` and skips those that fail a filter.
+Consecutive moments that score at least `min_score` form a window (`start`, `end`, `best`,
+`score`, `verdict`, and the `factors` of the best moment). Windows are ranked by score.
+The result also counts the moments `evaluated` and those `excluded` by each filter. For
+speed, a search interpolates positions between hourly exact ones, where the Moon is off by
+well under an arc second. It then assesses each window's best moment again on exact
+positions, so the reported score is exactly what `election` gives for that moment. A
+30-day search at 10-minute steps takes about half a second.
 
 ## Errors
 

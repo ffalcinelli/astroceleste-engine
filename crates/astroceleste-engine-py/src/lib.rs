@@ -8,8 +8,9 @@ use std::path::PathBuf;
 
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
-    calculate_chart, calculate_derived_chart, calculate_horary_chart, calculate_synastry,
-    calculate_transit_chart, ChartRequest, EngineError as CoreError, UtcInstant,
+    calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
+    calculate_synastry, calculate_transit_chart, search_elections, ChartRequest, ElectionCriteria,
+    EngineError as CoreError, UtcInstant,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
@@ -81,6 +82,14 @@ fn optional_value(obj: Option<&Bound<'_, PyAny>>) -> PyResult<Option<Value>> {
     match obj {
         Some(o) if !o.is_none() => Ok(Some(to_value(o)?)),
         _ => Ok(None),
+    }
+}
+
+/// Election criteria from a dict (None for the defaults).
+fn to_criteria(obj: Option<&Bound<'_, PyAny>>) -> PyResult<ElectionCriteria> {
+    match optional_value(obj)? {
+        Some(value) => ElectionCriteria::from_value(&value).map_err(to_py_err),
+        None => Ok(ElectionCriteria::default()),
     }
 }
 
@@ -239,6 +248,69 @@ impl Engine {
             .detach(|| calculate_horary_chart(&self.kernels, &req.as_chart_request()))
             .map_err(to_py_err)?;
         to_py(py, &chart)
+    }
+
+    /// A chart with its electional assessment under the `election_data` key.
+    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn election(
+        &self,
+        py: Python<'_>,
+        moment: &Bound<'_, PyAny>,
+        latitude: f64,
+        longitude: f64,
+        criteria: Option<&Bound<'_, PyAny>>,
+        house_system: &str,
+        zodiac_type: &str,
+        ayanamsa: &str,
+        orb_settings: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyAny>> {
+        let criteria = to_criteria(criteria)?;
+        let req = Request::new(
+            moment,
+            latitude,
+            longitude,
+            house_system,
+            zodiac_type,
+            ayanamsa,
+            orb_settings,
+        )?;
+        let chart = py
+            .detach(|| calculate_election_chart(&self.kernels, &req.as_chart_request(), &criteria))
+            .map_err(to_py_err)?;
+        to_py(py, &chart)
+    }
+
+    /// The best electional windows from `start` to `end` at a place.
+    #[pyo3(signature = (start, end, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag"))]
+    #[allow(clippy::too_many_arguments)]
+    fn elections(
+        &self,
+        py: Python<'_>,
+        start: &Bound<'_, PyAny>,
+        end: &Bound<'_, PyAny>,
+        latitude: f64,
+        longitude: f64,
+        criteria: Option<&Bound<'_, PyAny>>,
+        house_system: &str,
+        zodiac_type: &str,
+        ayanamsa: &str,
+    ) -> PyResult<Py<PyAny>> {
+        let criteria = to_criteria(criteria)?;
+        let end = to_instant(end)?;
+        let req = Request::new(
+            start,
+            latitude,
+            longitude,
+            house_system,
+            zodiac_type,
+            ayanamsa,
+            None,
+        )?;
+        let result = py
+            .detach(|| search_elections(&self.kernels, &req.as_chart_request(), end, &criteria))
+            .map_err(to_py_err)?;
+        to_py(py, &result)
     }
 
     /// The sky at `moment` and place, with its cross-aspects to `natal_planets`.

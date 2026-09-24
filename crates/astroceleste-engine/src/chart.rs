@@ -8,7 +8,7 @@ use crate::aspects::{natal_aspects, Aspect, OrbSettings, Point};
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::fixed_stars::{fixed_stars, FixedStarPosition};
-use crate::houses::{calculate_houses, HouseSystem};
+use crate::houses::{calculate_houses, HouseSystem, Houses};
 use crate::instant::UtcInstant;
 use crate::lots::{arabic_parts, Lot};
 use crate::lunar::{lunar_status, LunarStatus};
@@ -16,7 +16,7 @@ use crate::planets::calculate_planets;
 use crate::symbolic::symbolic_degree_number;
 use crate::temperament::{temperament, Temperament};
 use crate::zodiac::{
-    ayanamsa, ayanamsa_info, determine_house, longitude_to_zodiac, DEFAULT_AYANAMSA,
+    ayanamsa, ayanamsa_info, determine_house, longitude_to_zodiac, AyanamsaInfo, DEFAULT_AYANAMSA,
 };
 
 /// Every body a complete chart carries; missing ones are reported in
@@ -200,15 +200,28 @@ fn symbol_of(name: &str) -> &'static str {
     }
 }
 
-/// Compute a chart (`calculate_chart_data`).
-pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart, EngineError> {
+/// The positions part of a chart: placements and house cusps, without aspects, fixed
+/// stars, lots or temperament. Electional searches evaluate thousands of these.
+pub(crate) struct Sky {
+    pub zodiac_type: &'static str,
+    pub is_sidereal: bool,
+    pub ayanamsa_code: &'static str,
+    pub info: AyanamsaInfo,
+    pub jd: f64,
+    /// Cusps 1-12, degrees.
+    pub cusps: Vec<f64>,
+    pub house_cusps: Vec<HouseCusp>,
+    pub planets: Vec<Placement>,
+}
+
+/// Placements and houses of a request (the first half of [`calculate_chart`]).
+pub(crate) fn sky(kernels: &KernelSet, req: &ChartRequest) -> Result<Sky, EngineError> {
     let zodiac_type = match req.zodiac_type.trim().to_lowercase().as_str() {
         "sidereal" => "sidereal",
         _ => "tropical",
     };
     let is_sidereal = zodiac_type == "sidereal";
     let ayanamsa_code = ayanamsa(req.ayanamsa).code;
-    let orbs = OrbSettings::merge(req.orb_settings)?;
 
     let jd = req.instant.julian_day();
     let info = ayanamsa_info(jd, ayanamsa_code);
@@ -242,16 +255,34 @@ pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart,
         })
         .collect();
 
-    let mut raw: Vec<(&'static str, f64, f64, bool)> = engine
+    let raw: Vec<(&'static str, f64, f64, bool)> = engine
         .bodies
         .iter()
         .map(|b| (b.name, b.longitude, b.speed, b.is_retrograde))
         .collect();
+    let planets = placements(raw, &houses);
+
+    Ok(Sky {
+        zodiac_type,
+        is_sidereal,
+        ayanamsa_code,
+        info,
+        jd,
+        cusps,
+        house_cusps,
+        planets,
+    })
+}
+
+/// Placements of bodies given as (name, longitude, speed, retrograde), followed by the
+/// Ascendant and the Midheaven, with their houses.
+pub(crate) fn placements(
+    mut raw: Vec<(&'static str, f64, f64, bool)>,
+    houses: &Houses,
+) -> Vec<Placement> {
     raw.push(("Ascendant", houses.ascendant, 0.0, false));
     raw.push(("Midheaven", houses.midheaven, 0.0, false));
-
-    let planets: Vec<Placement> = raw
-        .iter()
+    raw.iter()
         .map(|&(name, lon, speed, is_retrograde)| {
             let z = longitude_to_zodiac(lon);
             Placement {
@@ -262,13 +293,28 @@ pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart,
                 degree: z.degree,
                 minute: z.minute,
                 ecliptic_longitude: lon,
-                house: determine_house(lon, &cusps),
+                house: determine_house(lon, &houses.cusps),
                 speed,
                 is_retrograde,
                 symbolic_degree: symbolic_degree_number(z.degree, z.minute),
             }
         })
-        .collect();
+        .collect()
+}
+
+/// Compute a chart (`calculate_chart_data`).
+pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart, EngineError> {
+    let orbs = OrbSettings::merge(req.orb_settings)?;
+    let Sky {
+        zodiac_type,
+        is_sidereal,
+        ayanamsa_code,
+        info,
+        jd,
+        cusps,
+        house_cusps,
+        planets,
+    } = sky(kernels, req)?;
     let points: Vec<Point> = planets
         .iter()
         .map(|p| Point {

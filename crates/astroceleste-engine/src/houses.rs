@@ -57,8 +57,20 @@ pub struct Houses {
 
 /// Houses at UT1 Julian date `jd` for geographic `lat`/`lon` (degrees, east positive).
 pub fn calculate_houses(jd: f64, lat: f64, lon: f64, system: HouseSystem, shift: f64) -> Houses {
-    let t = Time::from_ut1(jd);
-    let gast_hours = Orientation::at(&t).gast_hours;
+    let gast_hours = Orientation::at(&Time::from_ut1(jd)).gast_hours;
+    houses_at_sidereal_time(jd, gast_hours, lat, lon, system, shift)
+}
+
+/// [`calculate_houses`] with the Greenwich apparent sidereal time already known (e.g.
+/// interpolated by an electional search).
+pub fn houses_at_sidereal_time(
+    jd: f64,
+    gast_hours: f64,
+    lat: f64,
+    lon: f64,
+    system: HouseSystem,
+    shift: f64,
+) -> Houses {
     let ramc = pyfloat::rem(pyfloat::rem(gast_hours * 15.0 + lon, 360.0) + 360.0, 360.0);
     let ramc_r = ramc.to_radians();
     let lat_r = lat.to_radians();

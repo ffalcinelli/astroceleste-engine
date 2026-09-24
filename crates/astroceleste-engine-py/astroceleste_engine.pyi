@@ -42,6 +42,30 @@ class Engine:
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
+    def election(
+        self,
+        moment: Moment,
+        latitude: float,
+        longitude: float,
+        criteria: dict[str, Any] | None = None,
+        house_system: str = "P",
+        zodiac_type: str = "tropical",
+        ayanamsa: str = "galcent_0sag",
+        orb_settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """A chart with its electional assessment under `election_data`."""
+    def elections(
+        self,
+        start: Moment,
+        end: Moment,
+        latitude: float,
+        longitude: float,
+        criteria: dict[str, Any] | None = None,
+        house_system: str = "P",
+        zodiac_type: str = "tropical",
+        ayanamsa: str = "galcent_0sag",
+    ) -> dict[str, Any]:
+        """The best electional windows from `start` to `end` (at most 92 days)."""
     def transit(
         self,
         natal_planets: list[dict[str, Any]],

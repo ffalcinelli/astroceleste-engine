@@ -14,8 +14,9 @@
 
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
-    calculate_chart, calculate_derived_chart, calculate_horary_chart, calculate_synastry,
-    calculate_transit_chart, ChartRequest, EngineError, UtcInstant,
+    calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
+    calculate_synastry, calculate_transit_chart, search_elections, ChartRequest, ElectionCriteria,
+    EngineError, UtcInstant,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -147,6 +148,38 @@ impl Engine {
         to_js(&chart)
     }
 
+    /// A chart with its electional assessment under `election_data`. `criteria` may be
+    /// `undefined` for the defaults.
+    pub fn election(&self, request: JsValue, criteria: JsValue) -> Result<JsValue, JsValue> {
+        let (req, instant) = Request::parse(request)?;
+        let criteria = to_criteria(criteria)?;
+        let chart =
+            calculate_election_chart(&self.kernels, &req.as_chart_request(instant), &criteria)
+                .map_err(engine_error)?;
+        to_js(&chart)
+    }
+
+    /// The best electional windows from `request.utc` to `end` (ISO 8601 UTC, at most 92
+    /// days later) at the request's place.
+    pub fn elections(
+        &self,
+        request: JsValue,
+        end: &str,
+        criteria: JsValue,
+    ) -> Result<JsValue, JsValue> {
+        let (req, instant) = Request::parse(request)?;
+        let end = UtcInstant::parse(end).map_err(invalid)?;
+        let criteria = to_criteria(criteria)?;
+        let result = search_elections(
+            &self.kernels,
+            &req.as_chart_request(instant),
+            end,
+            &criteria,
+        )
+        .map_err(engine_error)?;
+        to_js(&result)
+    }
+
     /// The sky of `request`, with its cross-aspects to `natalPlanets`.
     pub fn transit(&self, natal_planets: JsValue, request: JsValue) -> Result<JsValue, JsValue> {
         let natal: Value = from_js(natal_planets)?;
@@ -168,6 +201,13 @@ fn optional(value: JsValue) -> Result<Option<Value>, JsValue> {
         Ok(None)
     } else {
         from_js(value).map(Some)
+    }
+}
+
+fn to_criteria(value: JsValue) -> Result<ElectionCriteria, JsValue> {
+    match optional(value)? {
+        Some(v) => ElectionCriteria::from_value(&v).map_err(engine_error),
+        None => Ok(ElectionCriteria::default()),
     }
 }
 
