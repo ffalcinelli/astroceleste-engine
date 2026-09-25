@@ -8,6 +8,8 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.5]
+
 ### Added
 
 - Degree qualities after William Lilly (*Christian Astrology*, 1659, p. 116):
