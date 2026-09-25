@@ -15,8 +15,9 @@
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
-    calculate_synastry, calculate_transit_chart, search_elections, ChartRequest, ElectionCriteria,
-    EngineError, UtcInstant,
+    calculate_synastry, calculate_transit_chart, degree_qualities as core_degree_qualities,
+    degree_quality_table as core_degree_quality_table, search_elections, ChartRequest,
+    ElectionCriteria, EngineError, UtcInstant,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -235,6 +236,18 @@ pub fn derived_chart(
     let chart = calculate_derived_chart(&base, root_house as i64, custom_name.as_deref())
         .map_err(engine_error)?;
     to_js(&chart)
+}
+
+/// Lilly's qualities of the degree an ecliptic longitude falls in.
+#[wasm_bindgen(js_name = degreeQualities)]
+pub fn degree_qualities(longitude: f64) -> Result<JsValue, JsValue> {
+    to_js(&core_degree_qualities(longitude))
+}
+
+/// Lilly's table of the degree qualities, one object per sign from Aries.
+#[wasm_bindgen(js_name = degreeQualityTable)]
+pub fn degree_quality_table() -> Result<JsValue, JsValue> {
+    to_js(core_degree_quality_table())
 }
 
 /// Julian day of an ISO 8601 UTC date-time, as the chart calculation uses it.

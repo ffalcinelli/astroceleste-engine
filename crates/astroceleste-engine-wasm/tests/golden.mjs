@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
 const require = createRequire(import.meta.url);
-const { Engine, synastry, derivedChart, julianDay, excerptKernel } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
+const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
 
 const PRIVATE = new Set(["degree_symbol", "degree_symbols"]);
 const strip = (v) =>
@@ -87,4 +87,7 @@ for (const c of fixture("synastry.json")) {
 for (const c of fixture("derived.json")) {
   same(strip(derivedChart(natal[c.input.base], c.input.root_house)), c.output, c.input.base, 0); count++;
 }
+const q = degreeQualities(5.5);
+assert.deepStrictEqual([q.sign, q.degree, q.pitted, q.light], ["Aries", 6, true, "light"]);
+assert.strictEqual(degreeQualityTable().length, 12);
 console.log(`golden checks: ${count} charts ok`);

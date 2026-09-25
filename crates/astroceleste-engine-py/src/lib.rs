@@ -9,8 +9,9 @@ use std::path::PathBuf;
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
-    calculate_synastry, calculate_transit_chart, search_elections, ChartRequest, ElectionCriteria,
-    EngineError as CoreError, UtcInstant,
+    calculate_synastry, calculate_transit_chart, degree_qualities as core_degree_qualities,
+    degree_quality_table as core_degree_quality_table, search_elections, ChartRequest,
+    ElectionCriteria, EngineError as CoreError, UtcInstant,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
@@ -381,6 +382,18 @@ fn julian_day(moment: &Bound<'_, PyAny>) -> PyResult<f64> {
     Ok(to_instant(moment)?.julian_day())
 }
 
+/// Lilly's qualities of the degree an ecliptic longitude falls in.
+#[pyfunction]
+fn degree_qualities(py: Python<'_>, longitude: f64) -> PyResult<Py<PyAny>> {
+    to_py(py, &core_degree_qualities(longitude))
+}
+
+/// Lilly's table of the degree qualities, one dict per sign from Aries.
+#[pyfunction]
+fn degree_quality_table(py: Python<'_>) -> PyResult<Py<PyAny>> {
+    to_py(py, core_degree_quality_table())
+}
+
 #[pymodule(name = "astroceleste_engine")]
 fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -388,6 +401,8 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(synastry, m)?)?;
     m.add_function(wrap_pyfunction!(derived_chart, m)?)?;
     m.add_function(wrap_pyfunction!(julian_day, m)?)?;
+    m.add_function(wrap_pyfunction!(degree_qualities, m)?)?;
+    m.add_function(wrap_pyfunction!(degree_quality_table, m)?)?;
     m.add("EngineError", m.py().get_type::<EngineError>())?;
     m.add(
         "EphemerisRangeError",

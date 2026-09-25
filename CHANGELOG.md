@@ -8,6 +8,18 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+### Added
+
+- Degree qualities after William Lilly (*Christian Astrology*, 1659, p. 116):
+  `degree_qualities` gives the masculine or feminine, light, dark, smoky or void, pitted,
+  lame (azimene) and fortune-increasing qualities of a longitude's degree, and
+  `degree_quality_table` returns the whole table. Python: `degree_qualities` /
+  `degree_quality_table`. JavaScript: `degreeQualities` / `degreeQualityTable`.
+- Elections weigh the degree qualities of the Moon and the Ascendant: `MOON_PITTED_DEGREE`,
+  `MOON_AZIMENE_DEGREE`, `MOON_FORTUNE_DEGREE`, `ASC_PITTED_DEGREE`, `ASC_AZIMENE_DEGREE`,
+  `ASC_FORTUNE_DEGREE`, `ASC_LIGHT_DEGREE` and `ASC_DARK_DEGREE`. Scores change for moments
+  where they apply.
+
 ## [0.0.4]
 
 ### Added

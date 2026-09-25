@@ -87,3 +87,7 @@ def derived_chart(
     base_chart: dict[str, Any], root_house: int, custom_name: str | None = None
 ) -> dict[str, Any]: ...
 def julian_day(moment: Moment) -> float: ...
+def degree_qualities(longitude: float) -> dict[str, Any]:
+    """Lilly's qualities of the degree an ecliptic longitude falls in."""
+def degree_quality_table() -> list[dict[str, Any]]:
+    """Lilly's table of the degree qualities, one dict per sign from Aries."""

@@ -147,3 +147,22 @@ def test_election_and_search(excerpt):
         best = excerpt.election(window["best"], 41.9, 12.5)["election_data"]
         assert best["score"] == window["score"]
     json.dumps(result)
+
+
+def test_degree_qualities():
+    # 5°30' Aries: the 6th degree, pitted, in the light run that ends at the 8th.
+    q = ace.degree_qualities(5.5)
+    assert q == {
+        "sign": "Aries",
+        "degree": 6,
+        "gender": "masculine",
+        "light": "light",
+        "pitted": True,
+        "azimene": False,
+        "fortune": False,
+    }
+    table = ace.degree_quality_table()
+    assert [s["sign"] for s in table][:2] == ["Aries", "Taurus"]
+    assert all(s["gender"][-1]["end"] == 30 and s["light"][-1]["end"] == 30 for s in table)
+    assert table[1]["azimene"] == [6, 7, 8, 9, 10]
+    json.dumps(table)

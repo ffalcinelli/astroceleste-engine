@@ -3,7 +3,7 @@
 //!
 //! A moment is assessed with the traditional electional rules (Bonatti, Lilly and the
 //! Arabic authors after Sahl): the Moon's condition and the next aspect she perfects, the
-//! Ascendant and its ruler, benefics and malefics on the angles, the retrogradation of the
+//! Ascendant and its ruler, the qualities of the Moon's and the Ascendant's degrees (Lilly), benefics and malefics on the angles, the retrogradation of the
 //! planets the matter needs, the ruler of the house of the matter, the planetary hour and,
 //! when a natal chart is given, the election's contacts with it. Each rule that applies is
 //! an [`ElectionFactor`] with a stable code and a signed weight; the score is 50 plus the
@@ -14,6 +14,7 @@ use serde_json::Value;
 
 use crate::almanac::SunEvents;
 use crate::chart::{calculate_chart, placements, sky, Chart, ChartRequest, Placement};
+use crate::degree_qualities::degree_qualities;
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::horary::{
@@ -713,6 +714,7 @@ fn assess(moment: &Moment, criteria: &Resolved) -> Result<ElectionData, EngineEr
     if (195.0..225.0).contains(&lon) {
         factors.push(ElectionFactor::new("MOON_VIA_COMBUSTA", -8.0).planet("Moon"));
     }
+    degree_factors(&mut factors, moon.ecliptic_longitude, true);
     match dignity("Moon", moon_sign) {
         Dignity::Dignified => factors.push(
             ElectionFactor::new("MOON_DIGNIFIED", 6.0)
@@ -784,6 +786,7 @@ fn assess(moment: &Moment, criteria: &Resolved) -> Result<ElectionData, EngineEr
     } else if asc_degree >= 27.0 {
         factors.push(ElectionFactor::new("ASC_LATE", -5.0).sign(asc_sign));
     }
+    degree_factors(&mut factors, asc_lon, false);
     let asc_ruler_name = traditional_ruler(asc_sign);
     if let Some(ruler) = asc_ruler_name.and_then(|r| moment.get(r)) {
         condition(
@@ -914,6 +917,42 @@ fn assess(moment: &Moment, criteria: &Resolved) -> Result<ElectionData, EngineEr
         planetary_hours: moment.hours.clone(),
         moon_status: status,
     })
+}
+
+/// Lilly's qualities of the Moon's or the Ascendant's degree: pitted and lame degrees
+/// hinder, degrees increasing fortune help and, for the Ascendant, light degrees help while
+/// dark and void ones hinder (smoky degrees are between the two).
+fn degree_factors(factors: &mut Vec<ElectionFactor>, longitude: f64, moon: bool) {
+    let q = degree_qualities(longitude);
+    let tag = |code: &'static str, weight: f64| {
+        let factor = ElectionFactor::new(code, weight).sign(q.sign);
+        if moon {
+            factor.planet("Moon")
+        } else {
+            factor
+        }
+    };
+    let pick = |moon_code, asc_code| if moon { moon_code } else { asc_code };
+    if q.pitted {
+        factors.push(tag(pick("MOON_PITTED_DEGREE", "ASC_PITTED_DEGREE"), -4.0));
+    }
+    if q.azimene {
+        factors.push(tag(pick("MOON_AZIMENE_DEGREE", "ASC_AZIMENE_DEGREE"), -3.0));
+    }
+    if q.fortune {
+        let weight = if moon { 3.0 } else { 4.0 };
+        factors.push(tag(
+            pick("MOON_FORTUNE_DEGREE", "ASC_FORTUNE_DEGREE"),
+            weight,
+        ));
+    }
+    if !moon {
+        match q.light {
+            "light" => factors.push(tag("ASC_LIGHT_DEGREE", 2.0)),
+            "dark" | "void" => factors.push(tag("ASC_DARK_DEGREE", -2.0)),
+            _ => {}
+        }
+    }
 }
 
 fn verdict(score: f64) -> &'static str {
@@ -1517,6 +1556,48 @@ mod tests {
         assert_eq!(weight(&contract), -10.0);
         assert!(general.excluded_by.is_empty());
         assert_eq!(contract.excluded_by, vec!["mercury_retrograde"]);
+    }
+
+    #[test]
+    fn degree_qualities_of_the_moon_and_the_ascendant() {
+        // Ascendant in the 11th degree of Aries (pitted, dark); Moon in the 8th of Taurus
+        // (lame).
+        let mut sky = good_sky();
+        sky[7] = placement("Ascendant", 10.5, 1, 0.0);
+        sky[1] = placement("Moon", 37.5, 2, 14.0);
+        let data = assess_with(&sky, &hours("Jupiter", true), &ElectionCriteria::default());
+        let found = codes(&data);
+        for code in [
+            "ASC_PITTED_DEGREE",
+            "ASC_DARK_DEGREE",
+            "MOON_AZIMENE_DEGREE",
+        ] {
+            assert!(found.contains(&code), "{code} missing from {found:?}");
+        }
+        let lame = data
+            .factors
+            .iter()
+            .find(|f| f.code == "MOON_AZIMENE_DEGREE")
+            .unwrap();
+        assert_eq!(
+            (lame.planet, lame.sign, lame.weight),
+            (Some("Moon"), Some("Taurus"), -3.0)
+        );
+
+        // Ascendant in the 19th of Aries (light, increasing fortune); Moon in the 3rd of
+        // Taurus (increasing fortune).
+        sky[7] = placement("Ascendant", 18.5, 1, 0.0);
+        sky[1] = placement("Moon", 32.5, 2, 14.0);
+        let data = assess_with(&sky, &hours("Jupiter", true), &ElectionCriteria::default());
+        let found = codes(&data);
+        for code in [
+            "ASC_FORTUNE_DEGREE",
+            "ASC_LIGHT_DEGREE",
+            "MOON_FORTUNE_DEGREE",
+        ] {
+            assert!(found.contains(&code), "{code} missing from {found:?}");
+        }
+        assert!(!found.iter().any(|c| c.ends_with("PITTED_DEGREE")));
     }
 
     #[test]

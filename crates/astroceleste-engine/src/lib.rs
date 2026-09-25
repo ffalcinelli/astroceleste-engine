@@ -36,6 +36,7 @@
 //! | [`calculate_derived_chart`] | a stored chart turned to a new first house (no kernel needed) |
 //! | [`calculate_election_chart`] | the chart plus [`ElectionData`]: an electional score with the rules that apply |
 //! | [`search_elections`] | the best [`ElectionWindow`]s over a span of time at a place |
+//! | [`degree_qualities`] | Lilly's [`DegreeQualities`] of the degree a longitude falls in (no kernel needed) |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
 //! Astroceleste API, with the same key order and the same integer vs float types. The
@@ -114,6 +115,7 @@ mod catalog;
 mod chart;
 mod chiron;
 mod constants;
+mod degree_qualities;
 mod derived;
 mod election;
 pub mod ephemeris;
@@ -135,8 +137,9 @@ pub mod time;
 mod zodiac;
 
 pub use aspects::{Aspect, CrossAspect};
-pub use catalog::LunarMansion;
+pub use catalog::{DegreeRun, LunarMansion, SignDegrees};
 pub use chart::{calculate_chart, Chart, ChartRequest, HouseCusp, Placement};
+pub use degree_qualities::{degree_qualities, degree_quality_table, DegreeQualities};
 pub use derived::{
     calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,
 };

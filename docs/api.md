@@ -214,13 +214,18 @@ wording is left to the application:
 
 | Group | Codes |
 |---|---|
-| Moon | `MOON_VOC`, `MOON_COMBUST`, `MOON_WAXING`, `MOON_VIA_COMBUSTA`, `MOON_DIGNIFIED`, `MOON_DEBILITATED`, `MOON_SWIFT`, `MOON_SLOW`, `MOON_ANGULAR`, `MOON_IN_DARK_HOUSE`, `MOON_APPLYING_BENEFIC`, `MOON_APPLYING_MALEFIC`, `MOON_APPLYING_SIGNIFICATOR` |
-| Ascendant | `ASC_EARLY`, `ASC_LATE`, `ASC_RULER_DIGNIFIED`, `ASC_RULER_DEBILITATED`, `ASC_RULER_ANGULAR`, `ASC_RULER_IN_DARK_HOUSE`, `ASC_RULER_RETROGRADE`, `ASC_RULER_COMBUST` |
+| Moon | `MOON_VOC`, `MOON_COMBUST`, `MOON_WAXING`, `MOON_VIA_COMBUSTA`, `MOON_PITTED_DEGREE`, `MOON_AZIMENE_DEGREE`, `MOON_FORTUNE_DEGREE`, `MOON_DIGNIFIED`, `MOON_DEBILITATED`, `MOON_SWIFT`, `MOON_SLOW`, `MOON_ANGULAR`, `MOON_IN_DARK_HOUSE`, `MOON_APPLYING_BENEFIC`, `MOON_APPLYING_MALEFIC`, `MOON_APPLYING_SIGNIFICATOR` |
+| Ascendant | `ASC_EARLY`, `ASC_LATE`, `ASC_PITTED_DEGREE`, `ASC_AZIMENE_DEGREE`, `ASC_FORTUNE_DEGREE`, `ASC_LIGHT_DEGREE`, `ASC_DARK_DEGREE`, `ASC_RULER_DIGNIFIED`, `ASC_RULER_DEBILITATED`, `ASC_RULER_ANGULAR`, `ASC_RULER_IN_DARK_HOUSE`, `ASC_RULER_RETROGRADE`, `ASC_RULER_COMBUST` |
 | Angles | `BENEFIC_IN_1ST`, `BENEFIC_ANGULAR`, `MALEFIC_IN_1ST`, `MALEFIC_ANGULAR` |
 | Retrogrades | `MERCURY_RETROGRADE`, `VENUS_RETROGRADE` |
 | The matter | `HOUSE_RULER_*` and `SIGNIFICATOR_*` (`DIGNIFIED`, `DEBILITATED`, `ANGULAR`, `IN_DARK_HOUSE`, `RETROGRADE`, `COMBUST`) |
 | Hour | `HOUR_RULER_FAVOURS_PURPOSE`, `HOUR_RULER_MALEFIC` |
 | Natal | `NATAL_ASC_WELL_PLACED`, `NATAL_ASC_BADLY_PLACED`, `NATAL_BENEFIC_CONTACT`, `NATAL_MALEFIC_CONTACT`, `NATAL_MOON_TO_BENEFIC`, `NATAL_MOON_TO_MALEFIC` |
+
+The `*_DEGREE` codes weigh the [degree qualities](#degree-qualities) of the Moon's and the
+Ascendant's degrees: pitted (−4) and lame (−3) degrees hinder, degrees increasing fortune
+help (+3 for the Moon, +4 for the Ascendant), and a light Ascendant degree helps (+2) while
+a dark or void one hinders (−2). Smoky degrees, between light and dark, are not weighed.
 
 A search assesses a moment every `step_minutes` and skips those that fail a filter.
 Consecutive moments that score at least `min_score` form a window (`start`, `end`, `best`,
@@ -230,6 +235,32 @@ speed, a search interpolates positions between hourly exact ones, where the Moon
 well under an arc second. It then assesses each window's best moment again on exact
 positions, so the reported score is exactly what `election` gives for that moment. A
 30-day search at 10-minute steps takes about half a second.
+
+## Degree qualities
+
+`degree_qualities(longitude)` gives the qualities William Lilly tabulates for each degree
+of the zodiac (*Christian Astrology*, 1659, p. 116; see
+[the transcription notes](degree-qualities.md)). No kernel is needed.
+
+```python
+ace.degree_qualities(5.5)
+# {"sign": "Aries", "degree": 6, "gender": "masculine", "light": "light",
+#  "pitted": True, "azimene": False, "fortune": False}
+```
+
+```js
+degreeQualities(5.5);
+```
+
+Degrees are ordinal, as in Lilly: `degree` 6 is 5°00′ to 5°59′ of the sign. `gender` is
+`masculine` or `feminine`, and `light` is `light`, `dark`, `smoky` or `void`. `pitted`
+marks the deep or pitted degrees, `azimene` the lame or deficient ones, and `fortune` the
+degrees increasing fortune. The longitude is taken in whatever zodiac it is measured in.
+
+`degree_quality_table()` (`degreeQualityTable()` in JavaScript) returns the whole table, one
+entry per sign from Aries: `gender` and `light` are runs (`quality`, `end`), each lasting from
+the end of the previous run up to and including its `end` degree, and `pitted`, `azimene` and
+`fortune` list degrees.
 
 ## Errors
 

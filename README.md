@@ -41,13 +41,14 @@ println!("{}", serde_json::to_string_pretty(&chart)?);
 Charts serialize to the same JSON as the Astroceleste API. Other entry points:
 `calculate_horary_chart`, `calculate_transit_chart`, `calculate_synastry`,
 `calculate_derived_chart`, and for electional astrology `calculate_election_chart` and
-`search_elections` (the best moments over a span of time). In the browser or on mobile, load the kernel from memory with
+`search_elections` (the best moments over a span of time), and `degree_qualities` (William
+Lilly's qualities of the zodiac degrees, no kernel needed). In the browser or on mobile, load the kernel from memory with
 `Spk::from_bytes`.
 
 ## Bindings
 
 - **Python** (`pip install astroceleste-engine`, CPython ≥ 3.12): `Engine([kernel paths])`
-  with `.chart()`, `.horary()`, `.transit()`, `.election()`, `.elections()`, plus `synastry()` and `derived_chart()`,
+  with `.chart()`, `.horary()`, `.transit()`, `.election()`, `.elections()`, plus `synastry()`, `derived_chart()` and `degree_qualities()`,
   returning plain dicts. See [crates/astroceleste-engine-py](https://github.com/ffalcinelli/astroceleste-engine/tree/main/crates/astroceleste-engine-py).
 - **JavaScript / WebAssembly** (`npm install astroceleste-engine`): the same API over
   kernels loaded from memory, for browsers and Node. See
