@@ -6,7 +6,7 @@ use serde_json::{json, Map, Value};
 
 use crate::aspects::{cross_aspects, points_from_json, CrossAspect};
 use crate::catalog::{DERIVED_HOUSE_MEANINGS, ROOT_HOUSE_THEMES};
-use crate::chart::{calculate_chart, ChartRequest, HouseCusp, Placement};
+use crate::chart::{chart_without_hours, ChartRequest, HouseCusp, Placement};
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::zodiac::ZODIAC_SIGNS;
@@ -46,7 +46,7 @@ pub fn calculate_transit_chart(
     req: &ChartRequest,
 ) -> Result<TransitChart, EngineError> {
     let natal = points_from_json(natal_planets)?;
-    let chart = calculate_chart(kernels, req)?;
+    let chart = chart_without_hours(kernels, req)?;
     let aspects = cross_aspects(&natal, &chart.points(), req.orb_settings)?;
     Ok(TransitChart {
         cross_aspects: aspects,

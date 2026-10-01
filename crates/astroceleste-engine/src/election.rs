@@ -13,8 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::almanac::SunEvents;
-use crate::chart::{calculate_chart, placements, sky, Chart, ChartRequest, Placement};
+use crate::chart::{chart_without_hours, placements, sky, Chart, ChartRequest, Placement};
 use crate::degree_qualities::degree_qualities;
+use crate::dignities::{is_debilitated, is_dignified, solar_phase};
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::horary::{
@@ -33,10 +34,6 @@ pub const MAX_SEARCH_DAYS: f64 = 92.0;
 const FAVOURABLE: f64 = 65.0;
 /// Scores from here up (and below [`FAVOURABLE`]) are mixed; below, unfavourable.
 const MIXED: f64 = 45.0;
-/// A planet this close to the Sun (degrees) is combust, unless cazimi.
-const COMBUST_ORB: f64 = 8.5;
-/// Within 17 arc minutes of the Sun a planet is cazimi, in the heart of the Sun.
-const CAZIMI_ORB: f64 = 17.0 / 60.0;
 /// Orb (degrees) of the election's contacts with natal points.
 const NATAL_ORB: f64 = 3.0;
 /// Below this latitude, where the Sun rises and sets every day, a search that finds
@@ -493,31 +490,9 @@ enum Dignity {
 
 /// Essential dignity by domicile and exaltation, debility by detriment and fall.
 fn dignity(planet: &str, sign: &str) -> Dignity {
-    let (dignified, debilitated): (&[&str], &[&str]) = match planet {
-        "Sun" => (&["Leo", "Aries"], &["Aquarius", "Libra"]),
-        "Moon" => (&["Cancer", "Taurus"], &["Capricorn", "Scorpio"]),
-        "Mercury" => (&["Gemini", "Virgo"], &["Sagittarius", "Pisces"]),
-        "Venus" => (
-            &["Taurus", "Libra", "Pisces"],
-            &["Scorpio", "Aries", "Virgo"],
-        ),
-        "Mars" => (
-            &["Aries", "Scorpio", "Capricorn"],
-            &["Libra", "Taurus", "Cancer"],
-        ),
-        "Jupiter" => (
-            &["Sagittarius", "Pisces", "Cancer"],
-            &["Gemini", "Virgo", "Capricorn"],
-        ),
-        "Saturn" => (
-            &["Capricorn", "Aquarius", "Libra"],
-            &["Cancer", "Leo", "Aries"],
-        ),
-        _ => (&[], &[]),
-    };
-    if dignified.contains(&sign) {
+    if is_dignified(planet, sign) {
         Dignity::Dignified
-    } else if debilitated.contains(&sign) {
+    } else if is_debilitated(planet, sign) {
         Dignity::Debilitated
     } else {
         Dignity::Peregrine
@@ -565,11 +540,13 @@ fn ptolemaic_aspect(a: f64, b: f64, orb: f64) -> Option<&'static str> {
 
 /// Whether `planet` is combust (within 8.5° of the Sun, but not cazimi).
 fn is_combust(planet: &Placement, sun: Option<&Placement>) -> bool {
-    planet.name != "Sun"
-        && sun.is_some_and(|sun| {
-            let d = separation(planet.ecliptic_longitude, sun.ecliptic_longitude);
-            d > CAZIMI_ORB && d < COMBUST_ORB
-        })
+    sun.is_some_and(|sun| {
+        solar_phase(
+            planet.name,
+            planet.ecliptic_longitude,
+            sun.ecliptic_longitude,
+        ) == Some("combust")
+    })
 }
 
 /// The condition of a significator (the Ascendant's ruler, the ruler of the house of the
@@ -1062,8 +1039,9 @@ pub fn calculate_election_chart(
     criteria: &ElectionCriteria,
 ) -> Result<ElectionChart, EngineError> {
     let resolved = criteria.resolve()?;
-    let chart = calculate_chart(kernels, req)?;
+    let mut chart = chart_without_hours(kernels, req)?;
     let hours = planetary_hours(kernels, req.instant, req.latitude, req.longitude);
+    chart.planetary_hours = Some(hours.clone());
     let cusps: Vec<f64> = chart.houses.iter().map(|h| h.ecliptic_longitude).collect();
     let election_data = assess(
         &Moment {
@@ -1441,6 +1419,7 @@ mod tests {
             speed,
             is_retrograde: speed < 0.0 && name != "Moon" && name != "Sun",
             symbolic_degree: 1,
+            condition: None,
         }
     }
 

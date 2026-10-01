@@ -13,16 +13,24 @@ ROOT = Path(__file__).resolve().parents[3]
 EXCERPT = ROOT / "tests" / "data" / "de440s_2000.bsp"
 FULL = ROOT / "kernels" / "de440s.bsp"
 FIXTURES = ROOT / "tests" / "fixtures"
-PRIVATE_KEYS = {"degree_symbol", "degree_symbols"}
+PRIVATE_KEYS = {"degree_symbol", "degree_symbols", "condition"}
+# Chart keys added after the reference implementation, absent from the fixtures.
+ADDED_CHART_KEYS = {"sect", "dignity_scheme", "receptions", "antiscia", "planetary_hours"}
 
 needs_full_kernel = pytest.mark.skipif(not FULL.exists(), reason="scripts/fetch-kernels.sh")
 
 
 def strip_private(value):
     if isinstance(value, dict):
-        return {k: strip_private(v) for k, v in value.items() if k not in PRIVATE_KEYS}
+        value = {k: v for k, v in value.items() if k not in ADDED_CHART_KEYS}
+    return strip_nested(value)
+
+
+def strip_nested(value):
+    if isinstance(value, dict):
+        return {k: strip_nested(v) for k, v in value.items() if k not in PRIVATE_KEYS}
     if isinstance(value, list):
-        return [strip_private(v) for v in value]
+        return [strip_nested(v) for v in value]
     return value
 
 
@@ -113,7 +121,7 @@ def test_golden_transits_synastry_derived():
             natal[case["input"]["natal"]]["planets"],
             t["utc"], t["lat"], t["lon"], t["house_system"], t["zodiac_type"], t["ayanamsa"],
         )
-        assert_same(actual, case["output"], t["id"])
+        assert_same(strip_private(actual), case["output"], t["id"])
     for case in load("synastry.json"):
         a, b = natal[case["input"]["a"]], natal[case["input"]["b"]]
         assert_same(ace.synastry(a["planets"], b["planets"]), case["output"])

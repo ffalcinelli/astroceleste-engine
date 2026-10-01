@@ -4,7 +4,9 @@
 use serde::Serialize;
 
 use crate::almanac::rise_set;
-use crate::chart::{calculate_chart, Chart, ChartRequest, Placement};
+use crate::chart::{chart_without_hours, Chart, ChartRequest, Placement};
+use crate::dignities::{element, triplicity_ruler};
+pub(crate) use crate::dignities::{traditional_ruler, SIGNS};
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::instant::UtcInstant;
@@ -17,20 +19,6 @@ const CHALDEAN_ORDER: [&str; 7] = [
 const DAY_RULERS: [&str; 7] = [
     "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Sun",
 ];
-pub(crate) const SIGNS: [&str; 12] = [
-    "Aries",
-    "Taurus",
-    "Gemini",
-    "Cancer",
-    "Leo",
-    "Virgo",
-    "Libra",
-    "Scorpio",
-    "Sagittarius",
-    "Capricorn",
-    "Aquarius",
-    "Pisces",
-];
 pub(crate) const PTOLEMAIC: [(f64, &str); 5] = [
     (0.0, "Conjunction"),
     (60.0, "Sextile"),
@@ -39,48 +27,11 @@ pub(crate) const PTOLEMAIC: [(f64, &str); 5] = [
     (180.0, "Opposition"),
 ];
 
-pub(crate) fn traditional_ruler(sign: &str) -> Option<&'static str> {
-    Some(match sign {
-        "Aries" | "Scorpio" => "Mars",
-        "Taurus" | "Libra" => "Venus",
-        "Gemini" | "Virgo" => "Mercury",
-        "Cancer" => "Moon",
-        "Leo" => "Sun",
-        "Sagittarius" | "Pisces" => "Jupiter",
-        "Capricorn" | "Aquarius" => "Saturn",
-        _ => return None,
-    })
-}
-
 fn modern_ruler(sign: &str) -> Option<&'static str> {
     Some(match sign {
         "Scorpio" => "Pluto",
         "Aquarius" => "Uranus",
         "Pisces" => "Neptune",
-        _ => return None,
-    })
-}
-
-pub(crate) fn element(sign: &str) -> Option<&'static str> {
-    Some(match sign {
-        "Aries" | "Leo" | "Sagittarius" => "Fire",
-        "Taurus" | "Virgo" | "Capricorn" => "Earth",
-        "Gemini" | "Libra" | "Aquarius" => "Air",
-        "Cancer" | "Scorpio" | "Pisces" => "Water",
-        _ => return None,
-    })
-}
-
-pub(crate) fn triplicity_ruler(element: &str, is_day: bool) -> Option<&'static str> {
-    Some(match (element, is_day) {
-        ("Fire", true) => "Sun",
-        ("Earth", true) => "Venus",
-        ("Air", true) => "Saturn",
-        ("Water", true) => "Venus",
-        ("Fire", false) => "Jupiter",
-        ("Earth", false) => "Moon",
-        ("Air", false) => "Mercury",
-        ("Water", false) => "Mars",
         _ => return None,
     })
 }
@@ -395,8 +346,9 @@ pub fn calculate_horary_chart(
     kernels: &KernelSet,
     req: &ChartRequest,
 ) -> Result<HoraryChart, EngineError> {
-    let chart = calculate_chart(kernels, req)?;
+    let mut chart = chart_without_hours(kernels, req)?;
     let hours = planetary_hours(kernels, req.instant, req.latitude, req.longitude);
+    chart.planetary_hours = Some(hours.clone());
 
     let by_name = |name: &str| chart.planets.iter().find(|p| p.name == name);
     let (asc_sign, asc_deg, asc_min) = match (by_name("Ascendant"), chart.houses.first()) {

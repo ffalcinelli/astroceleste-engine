@@ -99,6 +99,7 @@ function readForm() {
     house_system: data.get("house_system"),
     zodiac_type: data.get("zodiac_type"),
     ayanamsa: form.elements.ayanamsa.value,
+    dignity_scheme: data.get("dignity_scheme"),
   };
 }
 
@@ -138,6 +139,7 @@ async function compute() {
       houses: request.house_system, zodiac: request.zodiac_type,
     });
     if (request.zodiac_type === "sidereal") params.set("ayanamsa", request.ayanamsa);
+    if (request.dignity_scheme !== "lilly") params.set("dignities", request.dignity_scheme);
     history.replaceState(null, "", `?${params}#demo`);
   } catch (err) {
     const code = err && err.code ? ` (${err.code})` : "";
@@ -178,6 +180,14 @@ function renderSummary(chart) {
     ]);
   }
   if (asc) rows.push(["Ascendant", `${dm(asc)} ${asc.sign}`]);
+  if (chart.sect) {
+    const hours = chart.planetary_hours;
+    rows.push([
+      "Sect",
+      `${chart.sect === "diurnal" ? "Day" : "Night"} chart` +
+        (hours ? `<br><small>day of ${hours.day_ruler}, hour of ${hours.hour_ruler}</small>` : ""),
+    ]);
+  }
   if (chart.temperament && chart.temperament.primary_temperament) {
     rows.push(["Temperament", `${chart.temperament.primary_temperament} – ${chart.temperament.secondary_temperament}`]);
   }
@@ -200,12 +210,21 @@ function table(el, head, rows) {
 
 function renderTables(chart) {
   const glyphOf = new Map(chart.planets.map((p) => [p.name, p.symbol]));
-  table($("planets"), ["", "Point", "Position", "House", "Speed °/day"], chart.planets.map((p) => [
+  const dignity = (p) => {
+    const e = p.condition && p.condition.essential;
+    if (!e) return "–";
+    const held = ["domicile", "exaltation", "triplicity", "bound", "face", "detriment", "fall", "peregrine"]
+      .filter((k) => e[k])
+      .join(", ");
+    return `<span title="${held}">${e.score > 0 ? "+" : ""}${e.score}</span>`;
+  };
+  table($("planets"), ["", "Point", "Position", "House", "Speed °/day", "Dignity"], chart.planets.map((p) => [
     `<td class="glyph">${escapeHtml(text(p.symbol))}</td>`,
     `<td>${escapeHtml(p.name)}${p.is_retrograde ? ' <span class="retro" title="retrograde">℞</span>' : ""}</td>`,
     `<td>${dm(p)} <span class="glyph">${text(p.sign_symbol)}</span> ${p.sign}</td>`,
     `<td class="num">${p.house}</td>`,
     `<td class="num">${p.speed ? p.speed.toFixed(3) : "–"}</td>`,
+    `<td class="num">${dignity(p)}</td>`,
   ]));
   table($("houses"), ["House", "Cusp"], chart.houses.map((h) => [
     `<td>${h.house_number}</td>`,
@@ -350,6 +369,7 @@ if (utc && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z?$/.test(utc)) {
     house_system: params.get("houses") ?? "P",
     zodiac_type: params.get("zodiac") ?? "tropical",
     ayanamsa: params.get("ayanamsa") ?? "galcent_0sag",
+    dignity_scheme: params.get("dignities") ?? "lilly",
   });
   compute();
 }

@@ -38,15 +38,37 @@ pub fn instant(v: &Value) -> UtcInstant {
 /// Keys the fixtures leave out (degree symbolism is private data of the application).
 const PRIVATE_KEYS: [&str; 2] = ["degree_symbol", "degree_symbols"];
 
+/// Chart keys added after the reference implementation, absent from the fixtures and
+/// tested on their own (`tests/dignities.rs`).
+const ADDED_CHART_KEYS: [&str; 5] = [
+    "sect",
+    "dignity_scheme",
+    "receptions",
+    "antiscia",
+    "planetary_hours",
+];
+
+/// Remove what the fixtures leave out: private keys anywhere, the added chart keys at the
+/// top level and each placement's `condition`.
 pub fn strip_private(value: &mut Value) {
+    if let Value::Object(map) = value {
+        for key in ADDED_CHART_KEYS {
+            map.shift_remove(key);
+        }
+    }
+    strip_nested(value);
+}
+
+fn strip_nested(value: &mut Value) {
     match value {
         Value::Object(map) => {
             for key in PRIVATE_KEYS {
                 map.shift_remove(key);
             }
-            map.values_mut().for_each(strip_private);
+            map.shift_remove("condition");
+            map.values_mut().for_each(strip_nested);
         }
-        Value::Array(items) => items.iter_mut().for_each(strip_private),
+        Value::Array(items) => items.iter_mut().for_each(strip_nested),
         _ => {}
     }
 }

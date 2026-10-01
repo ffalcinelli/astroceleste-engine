@@ -34,9 +34,9 @@ and iOS.
                                   │
    houses.rs ───── cusps, Ascendant, Midheaven      zodiac.rs ── signs, ayanamsas, sidereal
                                   │
-   aspects.rs · fixed_stars.rs · lots.rs · temperament.rs · lunar.rs
+   aspects.rs · fixed_stars.rs · lots.rs · temperament.rs · lunar.rs · dignities.rs
                                   │
-   chart.rs ────── calculate_chart → Chart
+   chart.rs ────── calculate_chart → Chart (+ planetary hours, almanac.rs)
                                   │
    horary.rs ───── + planetary hours (almanac.rs sunrise/sunset), significators, strictures
    derived.rs ──── transits, synastry, derived charts on top of calculate_chart

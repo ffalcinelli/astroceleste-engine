@@ -59,8 +59,12 @@ fn default_zodiac() -> String {
 fn default_ayanamsa() -> String {
     "galcent_0sag".into()
 }
+fn default_dignity_scheme() -> String {
+    "lilly".into()
+}
 
-/// `{ utc, latitude, longitude, house_system?, zodiac_type?, ayanamsa?, orb_settings? }`
+/// `{ utc, latitude, longitude, house_system?, zodiac_type?, ayanamsa?, orb_settings?,
+/// dignity_scheme? }`
 #[derive(Deserialize)]
 struct Request {
     utc: String,
@@ -74,6 +78,8 @@ struct Request {
     ayanamsa: String,
     #[serde(default)]
     orb_settings: Option<Value>,
+    #[serde(default = "default_dignity_scheme")]
+    dignity_scheme: String,
 }
 
 impl Request {
@@ -92,6 +98,7 @@ impl Request {
             zodiac_type: &self.zodiac_type,
             ayanamsa: &self.ayanamsa,
             orb_settings: self.orb_settings.as_ref(),
+            dignity_scheme: &self.dignity_scheme,
         }
     }
 }

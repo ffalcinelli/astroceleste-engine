@@ -123,6 +123,12 @@
                   <option value="j2000">J2000.0 Epoch</option>
                 </select>
               </label>
+              <label class="span-2">Dignities <small>(triplicities and bounds)</small>
+                <select name="dignity_scheme">
+                  <option value="lilly" selected>Lilly (Ptolemaic terms)</option>
+                  <option value="dorothean">Dorothean (Egyptian bounds)</option>
+                </select>
+              </label>
             </div>
             <p class="hint">Times are UTC: convert local time, including daylight saving time, first.</p>
             <button type="submit" class="button primary wide">Compute chart</button>

@@ -5,9 +5,14 @@ use serde::{Serialize, Serializer};
 use serde_json::Value;
 
 use crate::aspects::{natal_aspects, Aspect, OrbSettings, Point};
+use crate::dignities::{
+    antiscia, condition, is_diurnal, receptions, AntisciaContact, Condition, DignityScheme,
+    Reception,
+};
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::fixed_stars::{fixed_stars, FixedStarPosition};
+use crate::horary::{planetary_hours, PlanetaryHours};
 use crate::houses::{calculate_houses, HouseSystem, Houses};
 use crate::instant::UtcInstant;
 use crate::lots::{arabic_parts, Lot};
@@ -57,6 +62,8 @@ pub struct ChartRequest<'a> {
     pub ayanamsa: &'a str,
     /// Caller orb settings, merged over the defaults.
     pub orb_settings: Option<&'a Value>,
+    /// Doctrine of triplicities and bounds: "lilly" (default) or "dorothean".
+    pub dignity_scheme: &'a str,
 }
 
 impl<'a> ChartRequest<'a> {
@@ -70,6 +77,7 @@ impl<'a> ChartRequest<'a> {
             zodiac_type: "tropical",
             ayanamsa: DEFAULT_AYANAMSA,
             orb_settings: None,
+            dignity_scheme: "lilly",
         }
     }
 }
@@ -99,6 +107,9 @@ pub struct Placement {
     pub is_retrograde: bool,
     /// Symbolic degree (1-30) within the sign, as used by degree symbolism.
     pub symbolic_degree: i64,
+    /// Essential dignity, sect, phase to the Sun and speed: the seven planets only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Condition>,
 }
 
 /// The cusp of one house.
@@ -156,6 +167,17 @@ pub struct Chart {
     /// Lunar phase and status; `None` (serialized as `{}`) without a Moon.
     #[serde(serialize_with = "empty_object_if_none")]
     pub lunar_status: Option<LunarStatus>,
+    /// "diurnal" (the Sun above the horizon) or "nocturnal"; `None` without Sun and Ascendant.
+    pub sect: Option<&'static str>,
+    /// Doctrine of triplicities and bounds used for `condition` and `receptions`.
+    pub dignity_scheme: &'static str,
+    /// Receptions among the seven planets.
+    pub receptions: Vec<Reception>,
+    /// Antiscia and contra-antiscia among the seven planets and the angles.
+    pub antiscia: Vec<AntisciaContact>,
+    /// Planetary day and hour; absent from transit skies.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub planetary_hours: Option<PlanetaryHours>,
 }
 
 fn empty_object_if_none<S: Serializer>(v: &Option<LunarStatus>, s: S) -> Result<S::Ok, S::Error> {
@@ -297,14 +319,51 @@ pub(crate) fn placements(
                 speed,
                 is_retrograde,
                 symbolic_degree: symbolic_degree_number(z.degree, z.minute),
+                condition: None,
             }
         })
         .collect()
 }
 
-/// Compute a chart (`calculate_chart_data`).
+/// Set the condition of the seven planets, which needs the Sun and the Ascendant.
+fn add_conditions(planets: &mut [Placement], scheme: DignityScheme) -> Option<&'static str> {
+    let at = |name: &str| {
+        planets
+            .iter()
+            .find(|p| p.name == name)
+            .map(|p| p.ecliptic_longitude)
+    };
+    let (sun, asc) = (at("Sun")?, at("Ascendant")?);
+    for planet in planets.iter_mut() {
+        planet.condition = condition(planet, sun, asc, scheme);
+    }
+    Some(if is_diurnal(sun, asc) {
+        "diurnal"
+    } else {
+        "nocturnal"
+    })
+}
+
+/// Compute a chart (`calculate_chart_data`), with its planetary day and hour.
 pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart, EngineError> {
+    let mut chart = chart_without_hours(kernels, req)?;
+    chart.planetary_hours = Some(planetary_hours(
+        kernels,
+        req.instant,
+        req.latitude,
+        req.longitude,
+    ));
+    Ok(chart)
+}
+
+/// A chart without its planetary hours, which cost a sunrise search: for transit skies,
+/// and for the callers that compute the hours themselves.
+pub(crate) fn chart_without_hours(
+    kernels: &KernelSet,
+    req: &ChartRequest,
+) -> Result<Chart, EngineError> {
     let orbs = OrbSettings::merge(req.orb_settings)?;
+    let scheme = DignityScheme::from_code(req.dignity_scheme);
     let Sky {
         zodiac_type,
         is_sidereal,
@@ -313,8 +372,9 @@ pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart,
         jd,
         cusps,
         house_cusps,
-        planets,
+        mut planets,
     } = sky(kernels, req)?;
+    let sect = add_conditions(&mut planets, scheme);
     let points: Vec<Point> = planets
         .iter()
         .map(|p| Point {
@@ -336,6 +396,8 @@ pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart,
     let lots = arabic_parts(&points, &cusps);
     let temperament = temperament(&planets, &aspects);
     let lunar = lunar_status(&planets);
+    let chart_receptions = receptions(&planets, &aspects, scheme);
+    let chart_antiscia = antiscia(&planets);
 
     let mut unavailable: Vec<&'static str> = EXPECTED_BODIES
         .iter()
@@ -361,5 +423,10 @@ pub fn calculate_chart(kernels: &KernelSet, req: &ChartRequest) -> Result<Chart,
         arabic_parts: lots,
         temperament,
         lunar_status: lunar,
+        sect,
+        dignity_scheme: scheme.code(),
+        receptions: chart_receptions,
+        antiscia: chart_antiscia,
+        planetary_hours: None,
     })
 }

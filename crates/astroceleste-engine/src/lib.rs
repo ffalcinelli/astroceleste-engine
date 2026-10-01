@@ -29,7 +29,7 @@
 //!
 //! | Function | Result |
 //! |---|---|
-//! | [`calculate_chart`] | a natal or event [`Chart`]: planets, houses, aspects, fixed stars, lots, temperament, lunar status |
+//! | [`calculate_chart`] | a natal or event [`Chart`]: planets (the seven with their [`Condition`]), houses, aspects, fixed stars, lots, temperament, lunar status, sect, [`Reception`]s, antiscia, planetary hours |
 //! | [`calculate_horary_chart`] | the chart plus [`HoraryData`]: planetary hours, significators, the Moon's aspects, strictures |
 //! | [`calculate_transit_chart`] | the sky at a moment and place, with its [`CrossAspect`]s to natal planets |
 //! | [`calculate_synastry`] | cross-aspects between two charts' planets (no kernel needed) |
@@ -117,6 +117,7 @@ mod chiron;
 mod constants;
 mod degree_qualities;
 mod derived;
+mod dignities;
 mod election;
 pub mod ephemeris;
 mod error;
@@ -142,6 +143,9 @@ pub use chart::{calculate_chart, Chart, ChartRequest, HouseCusp, Placement};
 pub use degree_qualities::{degree_qualities, degree_quality_table, DegreeQualities};
 pub use derived::{
     calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,
+};
+pub use dignities::{
+    AntisciaContact, Condition, DignityLords, DignityScheme, EssentialDignity, Reception,
 };
 pub use election::{
     calculate_election_chart, search_elections, CriteriaSummary, ElectionChart, ElectionCriteria,

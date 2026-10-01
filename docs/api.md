@@ -28,6 +28,7 @@ derived charts work on already computed charts and do not.
 | zodiac type | `tropical` or `sidereal` | `tropical` |
 | ayanamsa | sidereal reference, see below (ignored for tropical charts) | `galcent_0sag` |
 | orb settings | overrides merged over the default orbs, see below | none |
+| dignity scheme | `lilly` (Lilly's triplicities and terms) or `dorothean` (three triplicity lords, Egyptian bounds), see [dignities](dignities.md) | `lilly` |
 
 Times are always UTC. Convert civil time (with its time zone and daylight saving time) to
 UTC before calling the engine. Only the first letter of the house system is used, and
@@ -130,6 +131,14 @@ A chart is an object with these keys, in this order:
 | `arabic_parts` | the lots (Fortune, Spirit, …) with the formula used |
 | `temperament` | traditional temperament: scores, qualities and their breakdown |
 | `lunar_status` | phase, illumination, age, speed, dignity and lunar mansion |
+| `sect` | `diurnal` (the Sun above the horizon) or `nocturnal` |
+| `dignity_scheme` | the scheme the dignities were judged by |
+| `receptions` | receptions among the seven planets: `{planet, receiver, dignities, mutual, aspect}` |
+| `antiscia` | antiscion and contra-antiscion contacts: `{body1, body2, kind, orb}` |
+| `planetary_hours` | the planetary day and hour (left out of transit skies) |
+
+The last five keys and each planet's `condition` are additions to the reference
+implementation; [dignities](dignities.md) gives their tables and rules.
 
 A placement in `planets` (houses, fixed stars and lots use a similar shape):
 
@@ -138,6 +147,20 @@ A placement in `planets` (houses, fixed stars and lots use a similar shape):
   "degree": 10, "minute": 22, "ecliptic_longitude": 280.36891840215475,
   "house": 10, "speed": 1.0194357508121357, "is_retrograde": false,
   "symbolic_degree": 11 }
+```
+
+The seven planets also carry a `condition`:
+
+```json
+"condition": {
+  "essential": { "domicile": false, "exaltation": false, "triplicity": true, "bound": false,
+                 "face": false, "detriment": false, "fall": false, "peregrine": false,
+                 "score": 3,
+                 "lords": { "domicile": "Saturn", "exaltation": "Mars",
+                            "triplicity": ["Venus", "Moon"], "bound": "Jupiter",
+                            "face": "Mars" } },
+  "sect": "diurnal", "in_sect": true, "above_horizon": true,
+  "solar_phase": null, "orientality": null, "motion": "fast" }
 ```
 
 An aspect:

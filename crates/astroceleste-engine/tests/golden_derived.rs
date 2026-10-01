@@ -39,6 +39,7 @@ fn transits_match_reference() {
             zodiac_type: t["zodiac_type"].as_str().unwrap(),
             ayanamsa: t["ayanamsa"].as_str().unwrap(),
             orb_settings: None,
+            dignity_scheme: "lilly",
         };
         let chart = calculate_transit_chart(&kernels, &base["planets"], &req).unwrap();
         let mut actual = serde_json::to_value(&chart).unwrap();

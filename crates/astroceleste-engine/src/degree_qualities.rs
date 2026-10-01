@@ -84,7 +84,7 @@ mod tests {
             }
         }
         let signs: Vec<_> = degree_quality_table().iter().map(|s| s.sign).collect();
-        assert_eq!(signs, crate::horary::SIGNS);
+        assert_eq!(signs, crate::dignities::SIGNS);
     }
 
     #[test]

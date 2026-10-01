@@ -13,11 +13,15 @@ const root = join(here, "../../..");
 const require = createRequire(import.meta.url);
 const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
 
-const PRIVATE = new Set(["degree_symbol", "degree_symbols"]);
-const strip = (v) =>
-  Array.isArray(v) ? v.map(strip)
-  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([k]) => !PRIVATE.has(k)).map(([k, x]) => [k, strip(x)]))
+const PRIVATE = new Set(["degree_symbol", "degree_symbols", "condition"]);
+// Chart keys added after the reference implementation, absent from the fixtures.
+const ADDED = new Set(["sect", "dignity_scheme", "receptions", "antiscia", "planetary_hours"]);
+const stripNested = (v) =>
+  Array.isArray(v) ? v.map(stripNested)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([k]) => !PRIVATE.has(k)).map(([k, x]) => [k, stripNested(x)]))
   : v;
+const strip = (v) =>
+  stripNested(v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([k]) => !ADDED.has(k))) : v);
 
 function same(actual, expected, path, tol = 1e-9) {
   if (Array.isArray(expected)) {
@@ -79,7 +83,7 @@ let count = 0;
 for (const c of fixture("natal.json")) { same(strip(engine.chart(request(c.input))), c.output, c.input.id); count++; }
 for (const c of fixture("horary.json")) { same(strip(engine.horary(request(c.input))), c.output, c.input.id); count++; }
 for (const c of fixture("transits.json")) {
-  same(engine.transit(natal[c.input.natal].planets, request(c.input.transit)), c.output, c.input.transit.id); count++;
+  same(strip(engine.transit(natal[c.input.natal].planets, request(c.input.transit))), c.output, c.input.transit.id); count++;
 }
 for (const c of fixture("synastry.json")) {
   same(synastry(natal[c.input.a].planets, natal[c.input.b].planets), c.output, c.input.a); count++;
