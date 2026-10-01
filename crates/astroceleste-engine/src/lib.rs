@@ -37,6 +37,7 @@
 //! | [`calculate_election_chart`] | the chart plus [`ElectionData`]: an electional score with the rules that apply |
 //! | [`search_elections`] | the best [`ElectionWindow`]s over a span of time at a place |
 //! | [`degree_qualities`] | Lilly's [`DegreeQualities`] of the degree a longitude falls in (no kernel needed) |
+//! | [`chart_dignities`] | a computed chart's [`Condition`]s and [`Reception`]s judged again under the Lilly or Dorothean scheme (no kernel needed) |
 //! | [`time_lords`] | the annual [`Profection`]s and [`Firdaria`] of a nativity over a span of time (no kernel needed) |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
@@ -148,7 +149,8 @@ pub use derived::{
     calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,
 };
 pub use dignities::{
-    AntisciaContact, Condition, DignityLords, DignityScheme, EssentialDignity, Reception,
+    chart_dignities, AntisciaContact, ChartDignities, Condition, DignityLords, DignityScheme,
+    EssentialDignity, PlanetCondition, Reception,
 };
 pub use election::{
     calculate_election_chart, search_elections, CriteriaSummary, ElectionChart, ElectionCriteria,

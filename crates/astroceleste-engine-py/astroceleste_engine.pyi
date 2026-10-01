@@ -104,3 +104,5 @@ def time_lords(
     end: Moment,
 ) -> dict[str, Any]:
     """Annual profections and firdaria of a nativity for the years overlapping start..end."""
+def chart_dignities(chart: dict[str, Any], dignity_scheme: str = "lilly") -> dict[str, Any]:
+    """A computed chart's condition, sect and receptions judged again under a scheme."""

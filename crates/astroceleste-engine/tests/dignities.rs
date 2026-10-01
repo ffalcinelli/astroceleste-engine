@@ -4,7 +4,8 @@
 mod common;
 
 use astroceleste_engine::{
-    calculate_chart, calculate_horary_chart, calculate_transit_chart, ChartRequest, UtcInstant,
+    calculate_chart, calculate_horary_chart, calculate_transit_chart, chart_dignities,
+    ChartRequest, UtcInstant,
 };
 use common::kernels;
 use serde_json::{json, Value};
@@ -171,4 +172,69 @@ fn every_chart_but_a_transit_sky_has_its_planetary_hour() {
     let transit =
         serde_json::to_value(calculate_transit_chart(&kernels, &json!([]), &req).unwrap()).unwrap();
     assert!(transit.get("planetary_hours").is_none());
+}
+
+/// A chart's own condition and receptions, by planet name.
+fn judged(chart: &Value) -> (Vec<(String, Value)>, Value, Value) {
+    let conditions = chart["planets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p.get("condition").is_some())
+        .map(|p| {
+            (
+                p["name"].as_str().unwrap().to_string(),
+                p["condition"].clone(),
+            )
+        })
+        .collect();
+    (
+        conditions,
+        chart["receptions"].clone(),
+        chart["sect"].clone(),
+    )
+}
+
+fn rejudged(chart: &Value, scheme: &str) -> (Vec<(String, Value)>, Value, Value) {
+    let out = serde_json::to_value(chart_dignities(chart, scheme).unwrap()).unwrap();
+    let conditions = out["conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            (
+                c["name"].as_str().unwrap().to_string(),
+                c["condition"].clone(),
+            )
+        })
+        .collect();
+    (conditions, out["receptions"].clone(), out["sect"].clone())
+}
+
+#[test]
+fn a_stored_chart_can_be_judged_again_under_either_scheme() {
+    for utc in [
+        "1987-05-17T14:30:00Z",
+        "2001-09-11T12:46:00Z",
+        "1969-07-20T20:17:00Z",
+    ] {
+        let Some(lilly) = chart_json(&request(utc)) else {
+            return;
+        };
+        let mut req = request(utc);
+        req.dignity_scheme = "dorothean";
+        let dorothean = chart_json(&req).unwrap();
+        // The same scheme reproduces the chart; the other one matches a chart computed with it.
+        assert_eq!(rejudged(&lilly, "lilly"), judged(&lilly), "{utc}");
+        assert_eq!(rejudged(&lilly, "dorothean"), judged(&dorothean), "{utc}");
+        assert_eq!(rejudged(&dorothean, "lilly"), judged(&lilly), "{utc}");
+    }
+}
+
+#[test]
+fn judging_needs_the_sun_and_the_ascendant() {
+    let chart =
+        json!({ "planets": [{ "name": "Moon", "ecliptic_longitude": 10.0, "speed": 13.0 }] });
+    assert!(chart_dignities(&chart, "lilly").is_err());
+    assert!(chart_dignities(&json!({}), "lilly").is_err());
 }

@@ -8,8 +8,11 @@
 
 use serde::Serialize;
 
-use crate::aspects::Aspect;
+use serde_json::Value;
+
+use crate::aspects::ASPECT_RULES;
 use crate::chart::Placement;
+use crate::error::EngineError;
 use crate::pyfloat;
 
 /// The seven planets, in Chaldean order.
@@ -546,9 +549,27 @@ pub(crate) fn essential_dignity(
     }
 }
 
+/// What judging a planet needs: its name, longitude and speed.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Body {
+    pub name: &'static str,
+    pub longitude: f64,
+    pub speed: f64,
+}
+
+impl From<&Placement> for Body {
+    fn from(p: &Placement) -> Self {
+        Body {
+            name: p.name,
+            longitude: p.ecliptic_longitude,
+            speed: p.speed,
+        }
+    }
+}
+
 /// The condition of a planet of the seven; `None` for any other point.
 pub(crate) fn condition(
-    planet: &Placement,
+    planet: Body,
     sun: f64,
     ascendant: f64,
     scheme: DignityScheme,
@@ -556,7 +577,7 @@ pub(crate) fn condition(
     if !SEVEN.contains(&planet.name) {
         return None;
     }
-    let lon = planet.ecliptic_longitude;
+    let lon = planet.longitude;
     let diurnal = is_diurnal(sun, ascendant);
     let orientality = match planet.name {
         "Sun" | "Moon" => None,
@@ -637,31 +658,25 @@ fn is_strong(dignities: &[&str]) -> bool {
 /// Receptions among the seven planets: those joined by an aspect of the chart, by any
 /// dignity; and the mutual receptions by domicile or exaltation, aspected or not.
 pub(crate) fn receptions(
-    planets: &[Placement],
-    aspects: &[Aspect],
+    planets: &[Body],
+    aspect_between: impl Fn(&str, &str) -> Option<&'static str>,
     scheme: DignityScheme,
 ) -> Vec<Reception> {
-    let seven: Vec<&Placement> = SEVEN
+    let seven: Vec<&Body> = SEVEN
         .iter()
         .filter_map(|name| planets.iter().find(|p| p.name == *name))
         .collect();
-    let aspect_between = |a: &str, b: &str| {
-        aspects
-            .iter()
-            .find(|x| (x.body1 == a && x.body2 == b) || (x.body1 == b && x.body2 == a))
-            .map(|x| x.aspect_type)
-    };
     let mut out = Vec::new();
     for planet in &seven {
         for receiver in &seven {
             if planet.name == receiver.name {
                 continue;
             }
-            let held = dignities_of(receiver.name, planet.ecliptic_longitude, scheme);
+            let held = dignities_of(receiver.name, planet.longitude, scheme);
             if held.is_empty() {
                 continue;
             }
-            let back = dignities_of(planet.name, receiver.ecliptic_longitude, scheme);
+            let back = dignities_of(planet.name, receiver.longitude, scheme);
             let mutual = is_strong(&held) && is_strong(&back);
             let aspect = aspect_between(planet.name, receiver.name);
             if aspect.is_some() || mutual {
@@ -676,6 +691,110 @@ pub(crate) fn receptions(
         }
     }
     out
+}
+
+/// The condition of one planet, by name.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PlanetCondition {
+    /// One of the seven planets.
+    pub name: &'static str,
+    /// Its condition under the scheme.
+    pub condition: Condition,
+}
+
+/// A chart's dignities judged again under a scheme: what [`chart_dignities`] returns.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ChartDignities {
+    /// The scheme used: "lilly" or "dorothean".
+    pub dignity_scheme: &'static str,
+    /// "diurnal" or "nocturnal".
+    pub sect: &'static str,
+    /// The condition of each of the seven planets in the chart.
+    pub conditions: Vec<PlanetCondition>,
+    /// Receptions among the seven planets.
+    pub receptions: Vec<Reception>,
+}
+
+/// The static name of a chart point given as text (the seven planets and the Ascendant).
+fn static_name(name: &str) -> Option<&'static str> {
+    SEVEN
+        .iter()
+        .copied()
+        .chain(["Ascendant"])
+        .find(|n| *n == name)
+}
+
+/// The static name of a Ptolemaic or minor aspect given as text.
+fn static_aspect(name: &str) -> Option<&'static str> {
+    ASPECT_RULES.iter().map(|r| r.name).find(|n| *n == name)
+}
+
+/// Judge the dignities of an already computed chart (its JSON, as [`calculate_chart`](crate::calculate_chart)
+/// returns it: `planets` with `name`, `ecliptic_longitude` and `speed`, and `aspects`) under
+/// `scheme` ("lilly" or "dorothean"). No kernel is needed: a chart stored with one scheme can
+/// be shown with the other.
+pub fn chart_dignities(chart: &Value, scheme: &str) -> Result<ChartDignities, EngineError> {
+    let scheme = DignityScheme::from_code(scheme);
+    let invalid = |what: &str| EngineError::InvalidInput(format!("chart_dignities: {what}"));
+    let planets = chart
+        .get("planets")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("the chart has no planets"))?;
+    let bodies: Vec<Body> = planets
+        .iter()
+        .filter_map(|p| {
+            Some(Body {
+                name: static_name(p.get("name")?.as_str()?)?,
+                longitude: p.get("ecliptic_longitude")?.as_f64()?,
+                speed: p.get("speed").and_then(Value::as_f64).unwrap_or(0.0),
+            })
+        })
+        .collect();
+    let at = |name: &str| bodies.iter().find(|b| b.name == name).map(|b| b.longitude);
+    let (sun, asc) = at("Sun")
+        .zip(at("Ascendant"))
+        .ok_or_else(|| invalid("the chart needs the Sun and the Ascendant"))?;
+
+    let aspects: Vec<(String, String, &'static str)> = chart
+        .get("aspects")
+        .and_then(Value::as_array)
+        .map(|list| {
+            list.iter()
+                .filter_map(|a| {
+                    Some((
+                        a.get("body1")?.as_str()?.to_string(),
+                        a.get("body2")?.as_str()?.to_string(),
+                        static_aspect(a.get("aspect_type")?.as_str()?)?,
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let aspect_between = |a: &str, b: &str| {
+        aspects
+            .iter()
+            .find(|(x, y, _)| (x == a && y == b) || (x == b && y == a))
+            .map(|(_, _, kind)| *kind)
+    };
+
+    Ok(ChartDignities {
+        dignity_scheme: scheme.code(),
+        sect: if is_diurnal(sun, asc) {
+            "diurnal"
+        } else {
+            "nocturnal"
+        },
+        conditions: bodies
+            .iter()
+            .filter_map(|b| {
+                condition(*b, sun, asc, scheme).map(|condition| PlanetCondition {
+                    name: b.name,
+                    condition,
+                })
+            })
+            .collect(),
+        receptions: receptions(&bodies, aspect_between, scheme),
+    })
 }
 
 /// Two points joined by antiscion (mirrored across the solstitial axis, Cancer–Capricorn)

@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::aspects::{natal_aspects, Aspect, OrbSettings, Point};
 use crate::dignities::{
-    antiscia, condition, is_diurnal, receptions, AntisciaContact, Condition, DignityScheme,
+    antiscia, condition, is_diurnal, receptions, AntisciaContact, Body, Condition, DignityScheme,
     Reception,
 };
 use crate::ephemeris::KernelSet;
@@ -335,7 +335,7 @@ fn add_conditions(planets: &mut [Placement], scheme: DignityScheme) -> Option<&'
     };
     let (sun, asc) = (at("Sun")?, at("Ascendant")?);
     for planet in planets.iter_mut() {
-        planet.condition = condition(planet, sun, asc, scheme);
+        planet.condition = condition(Body::from(&*planet), sun, asc, scheme);
     }
     Some(if is_diurnal(sun, asc) {
         "diurnal"
@@ -396,7 +396,14 @@ pub(crate) fn chart_without_hours(
     let lots = arabic_parts(&points, &cusps);
     let temperament = temperament(&planets, &aspects);
     let lunar = lunar_status(&planets);
-    let chart_receptions = receptions(&planets, &aspects, scheme);
+    let bodies: Vec<Body> = planets.iter().map(Body::from).collect();
+    let aspect_between = |a: &str, b: &str| {
+        aspects
+            .iter()
+            .find(|x| (x.body1 == a && x.body2 == b) || (x.body1 == b && x.body2 == a))
+            .map(|x| x.aspect_type)
+    };
+    let chart_receptions = receptions(&bodies, aspect_between, scheme);
     let chart_antiscia = antiscia(&planets);
 
     let mut unavailable: Vec<&'static str> = EXPECTED_BODIES

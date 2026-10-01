@@ -218,6 +218,14 @@ ephemeris for a station. The considerations before judgment also include the Moo
 combusta (`MOON_VIA_COMBUSTA`), in the last degrees of a sign (`MOON_LATE_DEGREES`) and the
 lord of the Ascendant combust (`ASC_RULER_COMBUST`).
 
+## Judging a stored chart again
+
+`chart_dignities(chart, scheme)` (Python `chart_dignities`, JavaScript `chartDignities`; no
+kernel needed) takes a chart JSON as `calculate_chart` returns it and judges its dignities
+under `scheme` (`lilly` or `dorothean`): `{dignity_scheme, sect, conditions: [{name,
+condition}], receptions}`. A chart computed and stored with one scheme can so be shown with
+the other without computing it again.
+
 ## Time-lords
 
 `time_lords(birth, sun_longitude, ascendant_longitude, start, end)` (Python `time_lords`,

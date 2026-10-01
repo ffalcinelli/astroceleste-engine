@@ -197,3 +197,19 @@ def test_time_lords():
     assert len(lords["firdaria"][0]["sub_periods"]) == 7
     json.dumps(lords)
 
+
+@needs_full_kernel
+def test_chart_dignities_rejudge_a_stored_chart():
+    engine = ace.Engine([FULL])
+    lilly = engine.chart("1987-05-17T14:30:00Z", 41.9, 12.5)
+    dorothean = engine.chart("1987-05-17T14:30:00Z", 41.9, 12.5, dignity_scheme="dorothean")
+    judged = ace.chart_dignities(lilly, "dorothean")
+    assert judged["dignity_scheme"] == "dorothean"
+    by_name = {c["name"]: c["condition"] for c in judged["conditions"]}
+    for p in dorothean["planets"]:
+        if "condition" in p:
+            assert by_name[p["name"]] == p["condition"]
+    assert judged["receptions"] == dorothean["receptions"]
+    with pytest.raises(ValueError):
+        ace.chart_dignities({"planets": []})
+

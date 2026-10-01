@@ -65,3 +65,11 @@ each planet stands in the other's domicile or exaltation.
 The antiscion of a longitude λ mirrors it across the solstitial axis (180° − λ); the
 contra-antiscion mirrors it across the equinoctial axis (360° − λ). Contacts are listed
 among the seven planets, the Ascendant and the Midheaven, within 1°.
+
+## Judging again
+
+`chart_dignities` recomputes the condition, the sect and the receptions of an existing chart
+JSON under either scheme, from its planets' longitudes and speeds and its aspects. It gives the
+same result as computing the chart with that scheme (`tests/dignities.rs` checks it), so an
+application can store charts with one scheme and let each reader choose theirs.
+

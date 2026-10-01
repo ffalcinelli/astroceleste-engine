@@ -9,10 +9,10 @@ use std::path::PathBuf;
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
-    calculate_synastry, calculate_transit_chart, degree_qualities as core_degree_qualities,
-    degree_quality_table as core_degree_quality_table, search_elections,
-    time_lords as core_time_lords, ChartRequest, ElectionCriteria, EngineError as CoreError,
-    UtcInstant,
+    calculate_synastry, calculate_transit_chart, chart_dignities as core_chart_dignities,
+    degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
+    search_elections, time_lords as core_time_lords, ChartRequest, ElectionCriteria,
+    EngineError as CoreError, UtcInstant,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
@@ -436,6 +436,20 @@ fn time_lords(
     to_py(py, &lords)
 }
 
+/// A computed chart's dignities (condition, sect, receptions) judged again under
+/// `dignity_scheme` ("lilly" or "dorothean"). No kernel is needed.
+#[pyfunction]
+#[pyo3(signature = (chart, dignity_scheme="lilly"))]
+fn chart_dignities(
+    py: Python<'_>,
+    chart: &Bound<'_, PyAny>,
+    dignity_scheme: &str,
+) -> PyResult<Py<PyAny>> {
+    let chart = to_value(chart)?;
+    let judged = core_chart_dignities(&chart, dignity_scheme).map_err(to_py_err)?;
+    to_py(py, &judged)
+}
+
 #[pymodule(name = "astroceleste_engine")]
 fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -446,6 +460,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(degree_qualities, m)?)?;
     m.add_function(wrap_pyfunction!(degree_quality_table, m)?)?;
     m.add_function(wrap_pyfunction!(time_lords, m)?)?;
+    m.add_function(wrap_pyfunction!(chart_dignities, m)?)?;
     m.add("EngineError", m.py().get_type::<EngineError>())?;
     m.add(
         "EphemerisRangeError",

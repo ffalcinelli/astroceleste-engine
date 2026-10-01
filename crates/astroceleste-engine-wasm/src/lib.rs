@@ -15,9 +15,10 @@
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
-    calculate_synastry, calculate_transit_chart, degree_qualities as core_degree_qualities,
-    degree_quality_table as core_degree_quality_table, search_elections,
-    time_lords as core_time_lords, ChartRequest, ElectionCriteria, EngineError, UtcInstant,
+    calculate_synastry, calculate_transit_chart, chart_dignities as core_chart_dignities,
+    degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
+    search_elections, time_lords as core_time_lords, ChartRequest, ElectionCriteria, EngineError,
+    UtcInstant,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -282,6 +283,15 @@ pub fn time_lords(
         parse(start)?,
         parse(end)?,
     ))
+}
+
+/// A computed chart's dignities (condition, sect, receptions) judged again under `scheme`
+/// ("lilly" or "dorothean"). No kernel is needed.
+#[wasm_bindgen(js_name = chartDignities)]
+pub fn chart_dignities(chart: JsValue, scheme: &str) -> Result<JsValue, JsValue> {
+    let chart: Value = from_js(chart)?;
+    let judged = core_chart_dignities(&chart, scheme).map_err(engine_error)?;
+    to_js(&judged)
 }
 
 /// Julian day of an ISO 8601 UTC date-time, as the chart calculation uses it.
