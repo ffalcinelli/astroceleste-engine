@@ -37,6 +37,7 @@
 //! | [`calculate_election_chart`] | the chart plus [`ElectionData`]: an electional score with the rules that apply |
 //! | [`search_elections`] | the best [`ElectionWindow`]s over a span of time at a place |
 //! | [`degree_qualities`] | Lilly's [`DegreeQualities`] of the degree a longitude falls in (no kernel needed) |
+//! | [`time_lords`] | the annual [`Profection`]s and [`Firdaria`] of a nativity over a span of time (no kernel needed) |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
 //! Astroceleste API, with the same key order and the same integer vs float types. The
@@ -136,6 +137,7 @@ mod symbolic;
 mod temperament;
 #[doc(hidden)] // exposed for the reduction tests; not part of the API
 pub mod time;
+mod time_lords;
 mod zodiac;
 
 pub use aspects::{Aspect, CrossAspect};
@@ -164,3 +166,4 @@ pub use judgment::{Collection, Judgment, Perfection, Prohibition, Refranation, T
 pub use lots::Lot;
 pub use lunar::LunarStatus;
 pub use temperament::{Factor, Qualities, Scores, Temperament};
+pub use time_lords::{time_lords, Firdaria, Period, Profection, TimeLords};

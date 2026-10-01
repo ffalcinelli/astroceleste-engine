@@ -96,3 +96,11 @@ def degree_qualities(longitude: float) -> dict[str, Any]:
     """Lilly's qualities of the degree an ecliptic longitude falls in."""
 def degree_quality_table() -> list[dict[str, Any]]:
     """Lilly's table of the degree qualities, one dict per sign from Aries."""
+def time_lords(
+    birth: Moment,
+    sun_longitude: float,
+    ascendant_longitude: float,
+    start: Moment,
+    end: Moment,
+) -> dict[str, Any]:
+    """Annual profections and firdaria of a nativity for the years overlapping start..end."""

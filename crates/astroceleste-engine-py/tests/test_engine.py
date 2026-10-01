@@ -184,3 +184,16 @@ def test_degree_qualities():
     assert all(s["gender"][-1]["end"] == 30 and s["light"][-1]["end"] == 30 for s in table)
     assert table[1]["azimene"] == [6, 7, 8, 9, 10]
     json.dumps(table)
+
+
+def test_time_lords():
+    # A night birth (the Sun below a Leo Ascendant): the firdaria start with the Moon.
+    lords = ace.time_lords("1990-01-01T12:00:00Z", 280.0, 130.0, "2000-06-01T00:00:00Z", "2001-06-01T00:00:00Z")
+    assert lords["diurnal"] is False
+    assert [p["age"] for p in lords["profections"]] == [10, 11]
+    assert lords["profections"][0]["sign"] == "Gemini"  # Leo + 10 signs
+    assert lords["profections"][0]["lord"] == "Mercury"
+    assert lords["firdaria"][0]["lord"] == "Saturn"  # years 9-20 of a night birth
+    assert len(lords["firdaria"][0]["sub_periods"]) == 7
+    json.dumps(lords)
+

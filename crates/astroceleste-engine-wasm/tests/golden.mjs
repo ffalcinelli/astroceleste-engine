@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
 const require = createRequire(import.meta.url);
-const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
+const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable, timeLords } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
 
 const PRIVATE = new Set(["degree_symbol", "degree_symbols", "condition"]);
 // Chart keys added after the reference implementation, absent from the fixtures.
@@ -104,4 +104,7 @@ for (const c of fixture("derived.json")) {
 const q = degreeQualities(5.5);
 assert.deepStrictEqual([q.sign, q.degree, q.pitted, q.light], ["Aries", 6, true, "light"]);
 assert.strictEqual(degreeQualityTable().length, 12);
+const lords = timeLords("1990-01-01T12:00:00Z", 280, 130, "2000-06-01T00:00:00Z", "2001-06-01T00:00:00Z");
+assert.deepStrictEqual(lords.profections.map((p) => [p.age, p.sign, p.lord]), [[10, "Gemini", "Mercury"], [11, "Cancer", "Moon"]]);
+assert.strictEqual(lords.firdaria[0].lord, "Saturn");
 console.log(`golden checks: ${count} charts ok`);

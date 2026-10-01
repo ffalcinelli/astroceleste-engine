@@ -10,8 +10,9 @@ use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
     calculate_synastry, calculate_transit_chart, degree_qualities as core_degree_qualities,
-    degree_quality_table as core_degree_quality_table, search_elections, ChartRequest,
-    ElectionCriteria, EngineError as CoreError, UtcInstant,
+    degree_quality_table as core_degree_quality_table, search_elections,
+    time_lords as core_time_lords, ChartRequest, ElectionCriteria, EngineError as CoreError,
+    UtcInstant,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
@@ -414,6 +415,27 @@ fn degree_quality_table(py: Python<'_>) -> PyResult<Py<PyAny>> {
     to_py(py, core_degree_quality_table())
 }
 
+/// Annual profections and firdaria of a nativity (birth moment, natal Sun and Ascendant
+/// longitudes) for the years that overlap `start`..`end`.
+#[pyfunction]
+fn time_lords(
+    py: Python<'_>,
+    birth: &Bound<'_, PyAny>,
+    sun_longitude: f64,
+    ascendant_longitude: f64,
+    start: &Bound<'_, PyAny>,
+    end: &Bound<'_, PyAny>,
+) -> PyResult<Py<PyAny>> {
+    let lords = core_time_lords(
+        to_instant(birth)?,
+        sun_longitude,
+        ascendant_longitude,
+        to_instant(start)?,
+        to_instant(end)?,
+    );
+    to_py(py, &lords)
+}
+
 #[pymodule(name = "astroceleste_engine")]
 fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -423,6 +445,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(julian_day, m)?)?;
     m.add_function(wrap_pyfunction!(degree_qualities, m)?)?;
     m.add_function(wrap_pyfunction!(degree_quality_table, m)?)?;
+    m.add_function(wrap_pyfunction!(time_lords, m)?)?;
     m.add("EngineError", m.py().get_type::<EngineError>())?;
     m.add(
         "EphemerisRangeError",

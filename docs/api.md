@@ -218,6 +218,23 @@ ephemeris for a station. The considerations before judgment also include the Moo
 combusta (`MOON_VIA_COMBUSTA`), in the last degrees of a sign (`MOON_LATE_DEGREES`) and the
 lord of the Ascendant combust (`ASC_RULER_COMBUST`).
 
+## Time-lords
+
+`time_lords(birth, sun_longitude, ascendant_longitude, start, end)` (Python `time_lords`,
+JavaScript `timeLords`; no kernel needed) unfolds a nativity's time-lords for the years that
+overlap `start`..`end`:
+
+- `profections`: one per year of life, `{age, start, end, sign, lord, house}`. The
+  Ascendant moves one sign a year; the lord of the year rules that sign, and `house` is the
+  house it activates (whole signs).
+- `firdaria`: `{lord, start, end, sub_periods}`. A day birth runs Sun 10 years, Venus 8,
+  Mercury 13, Moon 9, Saturn 11, Jupiter 12, Mars 7; a night birth starts from the Moon in
+  the same order; the North Node (3) and South Node (2) close both rounds of 75 years, as in
+  Bonatti. Each planet's period has seven equal sub-periods, from the planet itself in
+  Chaldean order.
+
+Years are tropical years from the moment of birth. `diurnal` says which sequence was used.
+
 ## Elections
 
 Electional astrology looks for a good moment to begin something. `calculate_election_chart`
