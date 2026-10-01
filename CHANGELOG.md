@@ -8,6 +8,22 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.7]
+
+### Added
+
+- Time-lords: `time_lords(birth, sun_longitude, ascendant_longitude, start, end)` (no kernel
+  needed; Python `time_lords`, JavaScript `timeLords`) gives the annual profections (age,
+  sign, lord of the year, activated house) and the firdaria with their sub-periods, in the
+  day or night sequence with the nodes last, after Bonatti.
+- `chart_dignities(chart, scheme)` (no kernel needed; Python `chart_dignities`, JavaScript
+  `chartDignities`) judges a computed chart's condition, sect and receptions again under the
+  Lilly or the Dorothean scheme.
+
+### Fixed
+
+- The Python type stubs list `dignity_scheme` and `quesited_house`.
+
 ## [0.0.6]
 
 ### Added
