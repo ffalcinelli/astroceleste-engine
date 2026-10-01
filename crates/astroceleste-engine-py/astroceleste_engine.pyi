@@ -31,6 +31,7 @@ class Engine:
         zodiac_type: str = "tropical",
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
+        dignity_scheme: str = "lilly",
     ) -> dict[str, Any]: ...
     def horary(
         self,
@@ -41,6 +42,8 @@ class Engine:
         zodiac_type: str = "tropical",
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
+        dignity_scheme: str = "lilly",
+        quesited_house: int | None = None,
     ) -> dict[str, Any]: ...
     def election(
         self,
@@ -52,6 +55,7 @@ class Engine:
         zodiac_type: str = "tropical",
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
+        dignity_scheme: str = "lilly",
     ) -> dict[str, Any]:
         """A chart with its electional assessment under `election_data`."""
     def elections(
@@ -76,6 +80,7 @@ class Engine:
         zodiac_type: str = "tropical",
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
+        dignity_scheme: str = "lilly",
     ) -> dict[str, Any]: ...
 
 def synastry(
