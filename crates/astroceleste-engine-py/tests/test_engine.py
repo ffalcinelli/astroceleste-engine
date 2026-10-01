@@ -20,9 +20,19 @@ ADDED_CHART_KEYS = {"sect", "dignity_scheme", "receptions", "antiscia", "planeta
 needs_full_kernel = pytest.mark.skipif(not FULL.exists(), reason="scripts/fetch-kernels.sh")
 
 
+# Horary considerations added after the reference implementation.
+ADDED_STRICTURES = {"MOON_VIA_COMBUSTA", "MOON_LATE_DEGREES", "ASC_RULER_COMBUST"}
+
+
 def strip_private(value):
     if isinstance(value, dict):
         value = {k: v for k, v in value.items() if k not in ADDED_CHART_KEYS}
+        if isinstance(value.get("horary_data"), dict):
+            horary = {k: v for k, v in value["horary_data"].items() if k != "judgment"}
+            horary["strictures"] = [
+                s for s in horary.get("strictures", []) if s["code"] not in ADDED_STRICTURES
+            ]
+            value["horary_data"] = horary
     return strip_nested(value)
 
 

@@ -20,8 +20,18 @@ const stripNested = (v) =>
   Array.isArray(v) ? v.map(stripNested)
   : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([k]) => !PRIVATE.has(k)).map(([k, x]) => [k, stripNested(x)]))
   : v;
-const strip = (v) =>
-  stripNested(v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([k]) => !ADDED.has(k))) : v);
+// Horary considerations added after the reference implementation.
+const ADDED_STRICTURES = new Set(["MOON_VIA_COMBUSTA", "MOON_LATE_DEGREES", "ASC_RULER_COMBUST"]);
+const stripHorary = (h) => {
+  const { judgment, ...rest } = h;
+  return { ...rest, strictures: (rest.strictures || []).filter((s) => !ADDED_STRICTURES.has(s.code)) };
+};
+const strip = (v) => {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return stripNested(v);
+  const top = Object.fromEntries(Object.entries(v).filter(([k]) => !ADDED.has(k)));
+  if (top.horary_data) top.horary_data = stripHorary(top.horary_data);
+  return stripNested(top);
+};
 
 function same(actual, expected, path, tol = 1e-9) {
   if (Array.isArray(expected)) {

@@ -5,11 +5,12 @@ use serde::Serialize;
 
 use crate::almanac::rise_set;
 use crate::chart::{chart_without_hours, Chart, ChartRequest, Placement};
-use crate::dignities::{element, triplicity_ruler};
+use crate::dignities::{element, solar_phase, triplicity_ruler};
 pub(crate) use crate::dignities::{traditional_ruler, SIGNS};
 use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::instant::UtcInstant;
+use crate::judgment::{cusp_signs, judge, Judgment};
 use crate::pyfloat;
 
 const CHALDEAN_ORDER: [&str; 7] = [
@@ -328,6 +329,8 @@ pub struct HoraryData {
     pub strictures: Vec<Stricture>,
     /// The Moon's condition.
     pub moon_status: MoonStatus,
+    /// Significators and perfection (an addition to the reference implementation).
+    pub judgment: Judgment,
 }
 
 /// A horary chart: a complete chart plus `horary_data` (serialized flattened).
@@ -341,10 +344,12 @@ pub struct HoraryChart {
 }
 
 /// A chart for the moment of the question, with its horary analysis
-/// (`calculate_horary_chart_data`).
+/// (`calculate_horary_chart_data`). `quesited_house` (1-12) is the house of the matter
+/// asked about; its lord is judged against the lord of the Ascendant.
 pub fn calculate_horary_chart(
     kernels: &KernelSet,
     req: &ChartRequest,
+    quesited_house: Option<u8>,
 ) -> Result<HoraryChart, EngineError> {
     let mut chart = chart_without_hours(kernels, req)?;
     let hours = planetary_hours(kernels, req.instant, req.latitude, req.longitude);
@@ -393,9 +398,9 @@ pub fn calculate_horary_chart(
         _ => {}
     }
 
-    let moon =
+    let moon_place =
         by_name("Moon").ok_or_else(|| EngineError::InvalidInput("chart has no Moon".into()))?;
-    let moon = moon_status(moon, &chart.planets);
+    let moon = moon_status(moon_place, &chart.planets);
     if moon.void_of_course {
         strictures.push(Stricture {
             code: "MOON_VOC",
@@ -404,6 +409,52 @@ pub fn calculate_horary_chart(
                 .into(),
         });
     }
+
+    // Lilly's further considerations (additions to the reference implementation).
+    let moon_lon = pyfloat::rem(moon_place.ecliptic_longitude, 360.0);
+    if (195.0..225.0).contains(&moon_lon) {
+        strictures.push(Stricture {
+            code: "MOON_VIA_COMBUSTA",
+            severity: "warning",
+            message: "Moon in the Via Combusta (15° Libra to 15° Scorpio): the matter is troubled and its outcome uncertain."
+                .into(),
+        });
+    }
+    if moon_place.degree >= 27 {
+        strictures.push(Stricture {
+            code: "MOON_LATE_DEGREES",
+            severity: "info",
+            message: format!(
+                "Moon in the last degrees of {} ({}°): she has little left to do in her sign.",
+                moon_place.sign, moon_place.degree
+            ),
+        });
+    }
+    if let (Some(ruler), Some(sun)) = (by_name(traditional), by_name("Sun")) {
+        if solar_phase(ruler.name, ruler.ecliptic_longitude, sun.ecliptic_longitude)
+            == Some("combust")
+        {
+            strictures.push(Stricture {
+                code: "ASC_RULER_COMBUST",
+                severity: "warning",
+                message: format!(
+                    "The lord of the Ascendant ({traditional}) is combust: the querent is fearful, overpowered or without hope."
+                ),
+            });
+        }
+    }
+
+    let cusps: Vec<f64> = chart.houses.iter().map(|h| h.ecliptic_longitude).collect();
+    let judgment = judge(
+        kernels,
+        req.instant.julian_day(),
+        chart.ayanamsa_value.unwrap_or(0.0),
+        &chart.planets,
+        &cusp_signs(&cusps),
+        asc_sign,
+        quesited_house,
+        &chart.receptions,
+    );
 
     let triplicity = triplicity_ruler(element(asc_sign).unwrap_or("Fire"), hours.is_day);
     let is_radical = hours.hour_ruler == traditional || Some(hours.hour_ruler) == triplicity;
@@ -418,6 +469,7 @@ pub fn calculate_horary_chart(
             is_radical,
             strictures,
             moon_status: moon,
+            judgment,
         },
         chart,
     })

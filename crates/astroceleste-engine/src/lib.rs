@@ -30,7 +30,7 @@
 //! | Function | Result |
 //! |---|---|
 //! | [`calculate_chart`] | a natal or event [`Chart`]: planets (the seven with their [`Condition`]), houses, aspects, fixed stars, lots, temperament, lunar status, sect, [`Reception`]s, antiscia, planetary hours |
-//! | [`calculate_horary_chart`] | the chart plus [`HoraryData`]: planetary hours, significators, the Moon's aspects, strictures |
+//! | [`calculate_horary_chart`] | the chart plus [`HoraryData`]: planetary hours, the Moon's aspects, strictures and the [`Judgment`] (significators, perfection, prohibition, translation, collection) |
 //! | [`calculate_transit_chart`] | the sky at a moment and place, with its [`CrossAspect`]s to natal planets |
 //! | [`calculate_synastry`] | cross-aspects between two charts' planets (no kernel needed) |
 //! | [`calculate_derived_chart`] | a stored chart turned to a new first house (no kernel needed) |
@@ -127,6 +127,7 @@ pub mod frames;
 mod horary;
 mod houses;
 mod instant;
+mod judgment;
 mod lots;
 mod lunar;
 mod planets;
@@ -159,6 +160,7 @@ pub use horary::{
     SeparatingAspect, Stricture,
 };
 pub use instant::{ParseError, UtcInstant};
+pub use judgment::{Collection, Judgment, Perfection, Prohibition, Refranation, Translation};
 pub use lots::Lot;
 pub use lunar::LunarStatus;
 pub use temperament::{Factor, Qualities, Scores, Temperament};

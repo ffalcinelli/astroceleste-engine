@@ -50,10 +50,24 @@ const ADDED_CHART_KEYS: [&str; 5] = [
 
 /// Remove what the fixtures leave out: private keys anywhere, the added chart keys at the
 /// top level and each placement's `condition`.
+/// Horary considerations added after the reference implementation.
+const ADDED_STRICTURES: [&str; 3] = [
+    "MOON_VIA_COMBUSTA",
+    "MOON_LATE_DEGREES",
+    "ASC_RULER_COMBUST",
+];
+
 pub fn strip_private(value: &mut Value) {
     if let Value::Object(map) = value {
         for key in ADDED_CHART_KEYS {
             map.shift_remove(key);
+        }
+        if let Some(Value::Object(horary)) = map.get_mut("horary_data") {
+            horary.shift_remove("judgment");
+            if let Some(Value::Array(strictures)) = horary.get_mut("strictures") {
+                strictures
+                    .retain(|s| !ADDED_STRICTURES.contains(&s["code"].as_str().unwrap_or("")));
+            }
         }
     }
     strip_nested(value);

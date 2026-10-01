@@ -161,7 +161,8 @@ fn every_chart_but_a_transit_sky_has_its_planetary_hour() {
     let chart = serde_json::to_value(calculate_chart(&kernels, &req).unwrap()).unwrap();
     assert!(chart["planetary_hours"]["hour_ruler"].is_string());
 
-    let horary = serde_json::to_value(calculate_horary_chart(&kernels, &req).unwrap()).unwrap();
+    let horary =
+        serde_json::to_value(calculate_horary_chart(&kernels, &req, None).unwrap()).unwrap();
     assert_eq!(
         horary["planetary_hours"],
         horary["horary_data"]["planetary_hours"]

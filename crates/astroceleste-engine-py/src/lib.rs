@@ -232,8 +232,9 @@ impl Engine {
         to_py(py, &chart)
     }
 
-    /// A chart with its horary analysis under the `horary_data` key.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly"))]
+    /// A chart with its horary analysis under the `horary_data` key; `quesited_house`
+    /// (1-12) is the house of the matter asked about.
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", quesited_house=None))]
     #[allow(clippy::too_many_arguments)]
     fn horary(
         &self,
@@ -246,6 +247,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        quesited_house: Option<u8>,
     ) -> PyResult<Py<PyAny>> {
         let req = Request::new(
             moment,
@@ -258,7 +260,9 @@ impl Engine {
         )?
         .with_dignity_scheme(dignity_scheme);
         let chart = py
-            .detach(|| calculate_horary_chart(&self.kernels, &req.as_chart_request()))
+            .detach(|| {
+                calculate_horary_chart(&self.kernels, &req.as_chart_request(), quesited_house)
+            })
             .map_err(to_py_err)?;
         to_py(py, &chart)
     }

@@ -64,7 +64,7 @@ fn default_dignity_scheme() -> String {
 }
 
 /// `{ utc, latitude, longitude, house_system?, zodiac_type?, ayanamsa?, orb_settings?,
-/// dignity_scheme? }`
+/// dignity_scheme?, quesited_house? }`
 #[derive(Deserialize)]
 struct Request {
     utc: String,
@@ -80,6 +80,9 @@ struct Request {
     orb_settings: Option<Value>,
     #[serde(default = "default_dignity_scheme")]
     dignity_scheme: String,
+    /// Horary only: the house of the matter asked about (1-12).
+    #[serde(default)]
+    quesited_house: Option<u8>,
 }
 
 impl Request {
@@ -151,8 +154,12 @@ impl Engine {
     /// A chart with its horary analysis under `horary_data`.
     pub fn horary(&self, request: JsValue) -> Result<JsValue, JsValue> {
         let (req, instant) = Request::parse(request)?;
-        let chart = calculate_horary_chart(&self.kernels, &req.as_chart_request(instant))
-            .map_err(engine_error)?;
+        let chart = calculate_horary_chart(
+            &self.kernels,
+            &req.as_chart_request(instant),
+            req.quesited_house,
+        )
+        .map_err(engine_error)?;
         to_js(&chart)
     }
 

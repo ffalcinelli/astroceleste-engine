@@ -22,7 +22,7 @@ fn horary_charts_match_reference() {
             orb_settings: None,
             dignity_scheme: "lilly",
         };
-        let chart = calculate_horary_chart(&kernels, &req).unwrap();
+        let chart = calculate_horary_chart(&kernels, &req, None).unwrap();
         let mut actual = serde_json::to_value(&chart).unwrap();
         strip_private(&mut actual);
         diff(

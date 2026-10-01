@@ -45,7 +45,7 @@ fn election_chart_agrees_with_the_horary_analysis() {
         let req = ChartRequest::new(instant, ROME.0, ROME.1);
         let election =
             calculate_election_chart(&kernels, &req, &ElectionCriteria::default()).unwrap();
-        let horary = calculate_horary_chart(&kernels, &req).unwrap();
+        let horary = calculate_horary_chart(&kernels, &req, None).unwrap();
         let data = &election.election_data;
         assert_eq!(election.chart, horary.chart);
         assert_eq!(data.moon_status, horary.horary_data.moon_status);
@@ -176,7 +176,7 @@ fn filters_by_local_hours_and_daylight() {
 #[test]
 fn natal_contacts_change_the_ranking_only_with_a_natal_chart() {
     let Some(kernels) = kernels() else { return };
-    let natal = calculate_horary_chart(&kernels, &at("1987-05-17T14:30:00Z"))
+    let natal = calculate_horary_chart(&kernels, &at("1987-05-17T14:30:00Z"), None)
         .unwrap()
         .chart
         .planets

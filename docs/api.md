@@ -186,12 +186,37 @@ docs.rs.
 - **Horary**: the chart for the moment of the question, plus `horary_data` with the
   planetary day and hour (computed from the actual sunrise and sunset at the location),
   significators, the Moon's applying and separating aspects, void of course and the
-  considerations before judgment.
+  considerations before judgment. An optional quesited house (1–12; `quesited_house` in
+  Python and JavaScript, the third argument of `calculate_horary_chart` in Rust) adds the
+  judgment: see below.
 - **Transit**: the sky at a moment and place, with the aspects it forms to a natal chart's
   `planets` (`cross_aspects`).
 - **Synastry**: cross-aspects from chart B's `planets` to chart A's `planets`.
 - **Derived chart**: a stored chart turned so that radix house *n* (1–12) becomes the first
   house, with the meaning of each derived house. Fields that are not turned are kept.
+
+## Horary judgment
+
+`horary_data.judgment` names the significators after Lilly: the lord of the Ascendant for
+the querent (with the Moon as co-significator) and the lord of the quesited house's cusp. It
+then reports what brings the matter to perfection or prevents it:
+
+| Key | Content |
+|---|---|
+| `perfection` | the aspect the significators perfect: `{applying, to, aspect, degrees, days}` |
+| `moon_perfection` | the Moon's aspect to the quesited's significator |
+| `prohibition` | a third planet that perfects with a significator first: `{by, significator, aspect, days}` |
+| `refranation` | a significator that stations before the perfection: `{planet, aspect, days}` |
+| `translation` | without perfection, a lighter planet separating from one significator and applying to the other |
+| `collection` | without perfection, a heavier planet both significators apply to |
+| `receptions` | receptions between the significators |
+| `same_significator` | one planet rules both houses (judge by the Moon) |
+
+An aspect perfects only while both planets stay in their present signs. Perfection is
+projected from the present speeds, like the Moon's applying aspects; refranation checks the
+ephemeris for a station. The considerations before judgment also include the Moon in the via
+combusta (`MOON_VIA_COMBUSTA`), in the last degrees of a sign (`MOON_LATE_DEGREES`) and the
+lord of the Ascendant combust (`ASC_RULER_COMBUST`).
 
 ## Elections
 
