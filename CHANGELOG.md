@@ -8,6 +8,35 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.6]
+
+### Added
+
+- Essential dignities on every chart. Each of the seven planets carries a `condition`: its
+  domicile, exaltation, triplicity, bound and face (with the lords of its place), detriment,
+  fall or peregrine, Lilly's points, its sect and whether it is in sect, above the horizon,
+  cazimi, combust or under the beams, oriental or occidental, and fast, slow or stationary.
+  The chart adds its `sect`, the `receptions` among the planets, `antiscia` and
+  contra-antiscia, and its `planetary_hours` (left out of transit skies). Sources and rules:
+  `docs/dignities.md`.
+- `dignity_scheme` request option: `lilly` (default; Lilly's triplicities and Ptolemaic
+  terms) or `dorothean` (three triplicity lords and the Egyptian bounds).
+- Horary judgment. `calculate_horary_chart` takes the quesited house (Python
+  `quesited_house=`, JavaScript `quesited_house`) and adds `horary_data.judgment`: the
+  significators of the querent and of the quesited, the aspect they perfect within their
+  signs, the Moon's aspect to the quesited's lord, prohibition, refranation (a station found
+  in the ephemeris), translation and collection of light, and the receptions between the
+  significators.
+- Considerations before judgment: the Moon in the via combusta (`MOON_VIA_COMBUSTA`), in
+  the last degrees of her sign (`MOON_LATE_DEGREES`), and the lord of the Ascendant combust
+  (`ASC_RULER_COMBUST`).
+
+### Changed
+
+- `ChartRequest` has a `dignity_scheme` field, and `calculate_horary_chart` a third argument
+  (`quesited_house`).
+- The demo site has a dignity scheme selector and a dignity column.
+
 ## [0.0.5]
 
 ### Added
