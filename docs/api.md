@@ -29,6 +29,7 @@ derived charts work on already computed charts and do not.
 | ayanamsa | sidereal reference, see below (ignored for tropical charts) | `galcent_0sag` |
 | orb settings | overrides merged over the default orbs, see below | none |
 | dignity scheme | `lilly` (Lilly's triplicities and terms) or `dorothean` (three triplicity lords, Egyptian bounds), see [dignities](dignities.md) | `lilly` |
+| chinese calendar | also compute the Chinese calendar of the moment (`chinese_calendar` key), see [Chinese astrology](chinese.md) | `false` |
 
 Times are always UTC. Convert civil time (with its time zone and daylight saving time) to
 UTC before calling the engine. Only the first letter of the house system is used, and
@@ -242,6 +243,10 @@ overlap `start`..`end`:
   Chaldean order.
 
 Years are tropical years from the moment of birth. `diurnal` says which sequence was used.
+
+## Chinese astrology
+
+A chart requested with `chinese_calendar` carries the Chinese calendar of its moment: the solar terms, the lunar months and the equation of time. `bazi(calendar, birth, longitude, utc_offset_minutes, …)` (no kernel needed) casts the Four Pillars from it, with the hidden stems, Ten Gods, NaYin, element balance and luck pillars. The rules and the result are described in [Chinese astrology](chinese.md).
 
 ## Elections
 

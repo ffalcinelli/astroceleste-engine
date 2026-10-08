@@ -14,11 +14,12 @@
 
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
-    calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
-    calculate_synastry, calculate_transit_chart, chart_dignities as core_chart_dignities,
-    degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
-    search_elections, time_lords as core_time_lords, ChartRequest, ElectionCriteria, EngineError,
-    UtcInstant,
+    bazi as core_bazi, calculate_chart, calculate_derived_chart, calculate_election_chart,
+    calculate_horary_chart, calculate_synastry, calculate_transit_chart,
+    chart_dignities as core_chart_dignities, degree_qualities as core_degree_qualities,
+    degree_quality_table as core_degree_quality_table, search_elections,
+    time_lords as core_time_lords, BaziOptions, ChartRequest, ChineseCalendar, ElectionCriteria,
+    EngineError, UtcInstant,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -65,7 +66,7 @@ fn default_dignity_scheme() -> String {
 }
 
 /// `{ utc, latitude, longitude, house_system?, zodiac_type?, ayanamsa?, orb_settings?,
-/// dignity_scheme?, quesited_house? }`
+/// dignity_scheme?, quesited_house?, chinese_calendar? }`
 #[derive(Deserialize)]
 struct Request {
     utc: String,
@@ -84,6 +85,9 @@ struct Request {
     /// Horary only: the house of the matter asked about (1-12).
     #[serde(default)]
     quesited_house: Option<u8>,
+    /// Also compute the Chinese calendar of the moment.
+    #[serde(default)]
+    chinese_calendar: bool,
 }
 
 impl Request {
@@ -103,6 +107,7 @@ impl Request {
             ayanamsa: &self.ayanamsa,
             orb_settings: self.orb_settings.as_ref(),
             dignity_scheme: &self.dignity_scheme,
+            chinese_calendar: self.chinese_calendar,
         }
     }
 }
@@ -292,6 +297,52 @@ pub fn chart_dignities(chart: JsValue, scheme: &str) -> Result<JsValue, JsValue>
     let chart: Value = from_js(chart)?;
     let judged = core_chart_dignities(&chart, scheme).map_err(engine_error)?;
     to_js(&judged)
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// `{ solar_time?, zi_hour?, sex?, luck_pillars? }`
+#[derive(Deserialize)]
+struct BaziRequest {
+    #[serde(default = "yes")]
+    solar_time: bool,
+    #[serde(default)]
+    zi_hour: Option<String>,
+    #[serde(default)]
+    sex: Option<String>,
+    #[serde(default)]
+    luck_pillars: Option<u8>,
+}
+
+/// The Four Pillars of a birth (ISO 8601 UTC) at `longitude` (degrees east) where civil
+/// time was `utcOffsetMinutes` ahead of UTC, from its Chinese `calendar` (the chart's
+/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, luck_pillars? }`, or
+/// `undefined` for the defaults. No kernel is needed.
+#[wasm_bindgen]
+pub fn bazi(
+    calendar: JsValue,
+    birth: &str,
+    longitude: f64,
+    #[wasm_bindgen(js_name = utcOffsetMinutes)] utc_offset_minutes: f64,
+    options: JsValue,
+) -> Result<JsValue, JsValue> {
+    let calendar: ChineseCalendar = from_js(calendar)?;
+    let options = optional(options)?.unwrap_or_else(|| Value::Object(Default::default()));
+    let request: BaziRequest = serde_json::from_value(options).map_err(invalid)?;
+    let defaults = BaziOptions::default();
+    let options = BaziOptions {
+        solar_time: request.solar_time,
+        zi_hour: request.zi_hour.as_deref().unwrap_or(defaults.zi_hour),
+        sex: request.sex.as_deref(),
+        luck_pillars: request.luck_pillars.unwrap_or(defaults.luck_pillars),
+    };
+    let birth = UtcInstant::parse(birth).map_err(invalid)?;
+    to_js(
+        &core_bazi(&calendar, birth, longitude, utc_offset_minutes, &options)
+            .map_err(engine_error)?,
+    )
 }
 
 /// Julian day of an ISO 8601 UTC date-time, as the chart calculation uses it.

@@ -5,6 +5,7 @@ use serde::{Serialize, Serializer};
 use serde_json::Value;
 
 use crate::aspects::{natal_aspects, Aspect, OrbSettings, Point};
+use crate::chinese::calendar::{chinese_calendar, ChineseCalendar};
 use crate::dignities::{
     antiscia, condition, is_diurnal, receptions, AntisciaContact, Body, Condition, DignityScheme,
     Reception,
@@ -64,6 +65,9 @@ pub struct ChartRequest<'a> {
     pub orb_settings: Option<&'a Value>,
     /// Doctrine of triplicities and bounds: "lilly" (default) or "dorothean".
     pub dignity_scheme: &'a str,
+    /// Also compute the [`ChineseCalendar`] of the moment (default `false`): a few dozen
+    /// solar-term and new-moon searches.
+    pub chinese_calendar: bool,
 }
 
 impl<'a> ChartRequest<'a> {
@@ -78,6 +82,7 @@ impl<'a> ChartRequest<'a> {
             ayanamsa: DEFAULT_AYANAMSA,
             orb_settings: None,
             dignity_scheme: "lilly",
+            chinese_calendar: false,
         }
     }
 }
@@ -178,6 +183,9 @@ pub struct Chart {
     /// Planetary day and hour; absent from transit skies.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub planetary_hours: Option<PlanetaryHours>,
+    /// The Chinese calendar of the moment, when requested and the kernels cover it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chinese_calendar: Option<ChineseCalendar>,
 }
 
 fn empty_object_if_none<S: Serializer>(v: &Option<LunarStatus>, s: S) -> Result<S::Ok, S::Error> {
@@ -435,5 +443,10 @@ pub(crate) fn chart_without_hours(
         receptions: chart_receptions,
         antiscia: chart_antiscia,
         planetary_hours: None,
+        chinese_calendar: if req.chinese_calendar {
+            chinese_calendar(kernels, req.instant)?
+        } else {
+            None
+        },
     })
 }

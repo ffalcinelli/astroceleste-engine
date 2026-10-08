@@ -8,10 +8,11 @@ use std::path::PathBuf;
 
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
-    calculate_chart, calculate_derived_chart, calculate_election_chart, calculate_horary_chart,
-    calculate_synastry, calculate_transit_chart, chart_dignities as core_chart_dignities,
-    degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
-    search_elections, time_lords as core_time_lords, ChartRequest, ElectionCriteria,
+    bazi as core_bazi, calculate_chart, calculate_derived_chart, calculate_election_chart,
+    calculate_horary_chart, calculate_synastry, calculate_transit_chart,
+    chart_dignities as core_chart_dignities, degree_qualities as core_degree_qualities,
+    degree_quality_table as core_degree_quality_table, search_elections,
+    time_lords as core_time_lords, BaziOptions, ChartRequest, ChineseCalendar, ElectionCriteria,
     EngineError as CoreError, UtcInstant,
 };
 use pyo3::create_exception;
@@ -105,6 +106,7 @@ struct Request {
     ayanamsa: String,
     orb_settings: Option<Value>,
     dignity_scheme: String,
+    chinese_calendar: bool,
 }
 
 impl Request {
@@ -127,11 +129,17 @@ impl Request {
             ayanamsa: ayanamsa.to_string(),
             orb_settings: optional_value(orb_settings)?,
             dignity_scheme: "lilly".to_string(),
+            chinese_calendar: false,
         })
     }
 
     fn with_dignity_scheme(mut self, scheme: &str) -> Self {
         self.dignity_scheme = scheme.to_string();
+        self
+    }
+
+    fn with_chinese_calendar(mut self, chinese_calendar: bool) -> Self {
+        self.chinese_calendar = chinese_calendar;
         self
     }
 
@@ -145,6 +153,7 @@ impl Request {
             ayanamsa: &self.ayanamsa,
             orb_settings: self.orb_settings.as_ref(),
             dignity_scheme: &self.dignity_scheme,
+            chinese_calendar: self.chinese_calendar,
         }
     }
 }
@@ -202,8 +211,9 @@ impl Engine {
         self.kernels.for_jd(jd).is_some()
     }
 
-    /// The chart of a moment and place, as the API's chart dict.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly"))]
+    /// The chart of a moment and place, as the API's chart dict; with
+    /// `chinese_calendar`, also the Chinese calendar of the moment.
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", chinese_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn chart(
         &self,
@@ -216,6 +226,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        chinese_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let req = Request::new(
             moment,
@@ -226,7 +237,8 @@ impl Engine {
             ayanamsa,
             orb_settings,
         )?
-        .with_dignity_scheme(dignity_scheme);
+        .with_dignity_scheme(dignity_scheme)
+        .with_chinese_calendar(chinese_calendar);
         let chart = py
             .detach(|| calculate_chart(&self.kernels, &req.as_chart_request()))
             .map_err(to_py_err)?;
@@ -235,7 +247,7 @@ impl Engine {
 
     /// A chart with its horary analysis under the `horary_data` key; `quesited_house`
     /// (1-12) is the house of the matter asked about.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", quesited_house=None))]
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", quesited_house=None, chinese_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn horary(
         &self,
@@ -249,6 +261,7 @@ impl Engine {
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
         quesited_house: Option<u8>,
+        chinese_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let req = Request::new(
             moment,
@@ -259,7 +272,8 @@ impl Engine {
             ayanamsa,
             orb_settings,
         )?
-        .with_dignity_scheme(dignity_scheme);
+        .with_dignity_scheme(dignity_scheme)
+        .with_chinese_calendar(chinese_calendar);
         let chart = py
             .detach(|| {
                 calculate_horary_chart(&self.kernels, &req.as_chart_request(), quesited_house)
@@ -450,6 +464,42 @@ fn chart_dignities(
     to_py(py, &judged)
 }
 
+/// The Four Pillars of a birth at `moment`, at `longitude` (degrees east) where civil time
+/// was `utc_offset_minutes` ahead of UTC, from its Chinese `calendar` (the chart's
+/// `chinese_calendar`). No kernel is needed.
+#[pyfunction]
+#[pyo3(signature = (calendar, moment, longitude, utc_offset_minutes, solar_time=true, zi_hour="next_day", sex=None, luck_pillars=10))]
+#[allow(clippy::too_many_arguments)]
+fn bazi(
+    py: Python<'_>,
+    calendar: &Bound<'_, PyAny>,
+    moment: &Bound<'_, PyAny>,
+    longitude: f64,
+    utc_offset_minutes: f64,
+    solar_time: bool,
+    zi_hour: &str,
+    sex: Option<&str>,
+    luck_pillars: u8,
+) -> PyResult<Py<PyAny>> {
+    let calendar: ChineseCalendar = serde_json::from_value(to_value(calendar)?)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let options = BaziOptions {
+        solar_time,
+        zi_hour,
+        sex,
+        luck_pillars,
+    };
+    let pillars = core_bazi(
+        &calendar,
+        to_instant(moment)?,
+        longitude,
+        utc_offset_minutes,
+        &options,
+    )
+    .map_err(to_py_err)?;
+    to_py(py, &pillars)
+}
+
 #[pymodule(name = "astroceleste_engine")]
 fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -461,6 +511,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(degree_quality_table, m)?)?;
     m.add_function(wrap_pyfunction!(time_lords, m)?)?;
     m.add_function(wrap_pyfunction!(chart_dignities, m)?)?;
+    m.add_function(wrap_pyfunction!(bazi, m)?)?;
     m.add("EngineError", m.py().get_type::<EngineError>())?;
     m.add(
         "EphemerisRangeError",

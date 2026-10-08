@@ -213,3 +213,25 @@ def test_chart_dignities_rejudge_a_stored_chart():
     with pytest.raises(ValueError):
         ace.chart_dignities({"planets": []})
 
+
+
+@needs_full_kernel
+def test_chinese_calendar_and_bazi():
+    engine = ace.Engine([FULL])
+    birth = "1940-11-27T15:12:00Z"  # Bruce Lee, San Francisco, 07:12 PST
+    assert "chinese_calendar" not in engine.chart(birth, 37.77, -122.42)
+    chart = engine.chart(birth, 37.77, -122.42, chinese_calendar=True)
+    calendar = chart["chinese_calendar"]
+    assert calendar["solar_terms"][0]["name"] == "lichun"
+    pillars = ace.bazi(calendar, birth, -122.42, -480, sex="male")
+    assert [(pillars[p]["stem"], pillars[p]["branch"]) for p in ("year", "month", "day", "hour")] == [
+        ("geng", "chen"),
+        ("ding", "hai"),
+        ("jia", "xu"),
+        ("wu", "chen"),
+    ]
+    assert pillars["luck"]["direction"] == "forward"
+    assert ace.bazi(calendar, birth, -122.42, -480)["luck"] is None
+    with pytest.raises(ValueError):
+        ace.bazi(calendar, birth, -122.42, -480, zi_hour="noon")
+    json.dumps(pillars)

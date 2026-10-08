@@ -42,6 +42,8 @@ and iOS.
    derived.rs ──── transits, synastry, derived charts on top of calculate_chart
    election.rs ─── electional score of a moment; search over a span (interpolated between
                    hourly exact positions, sunrises found once for the span)
+   chinese/ ────── calendar.rs: solar terms, new moons, lunar and leap months, equation of
+                   time (on request with a chart); bazi.rs: the Four Pillars (no kernel)
 ```
 
 Supporting modules:

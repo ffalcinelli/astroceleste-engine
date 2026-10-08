@@ -32,6 +32,7 @@ class Engine:
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
         dignity_scheme: str = "lilly",
+        chinese_calendar: bool = False,
     ) -> dict[str, Any]: ...
     def horary(
         self,
@@ -44,6 +45,7 @@ class Engine:
         orb_settings: dict[str, Any] | None = None,
         dignity_scheme: str = "lilly",
         quesited_house: int | None = None,
+        chinese_calendar: bool = False,
     ) -> dict[str, Any]: ...
     def election(
         self,
@@ -106,3 +108,14 @@ def time_lords(
     """Annual profections and firdaria of a nativity for the years overlapping start..end."""
 def chart_dignities(chart: dict[str, Any], dignity_scheme: str = "lilly") -> dict[str, Any]:
     """A computed chart's condition, sect and receptions judged again under a scheme."""
+def bazi(
+    calendar: dict[str, Any],
+    moment: Moment,
+    longitude: float,
+    utc_offset_minutes: float,
+    solar_time: bool = True,
+    zi_hour: str = "next_day",
+    sex: str | None = None,
+    luck_pillars: int = 10,
+) -> dict[str, Any]:
+    """The Four Pillars of a birth from its Chinese calendar (a chart's chinese_calendar)."""

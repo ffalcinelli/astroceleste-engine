@@ -39,6 +39,8 @@
 //! | [`degree_qualities`] | Lilly's [`DegreeQualities`] of the degree a longitude falls in (no kernel needed) |
 //! | [`chart_dignities`] | a computed chart's [`Condition`]s and [`Reception`]s judged again under the Lilly or Dorothean scheme (no kernel needed) |
 //! | [`time_lords`] | the annual [`Profection`]s and [`Firdaria`] of a nativity over a span of time (no kernel needed) |
+//! | [`chinese_calendar`] | the [`ChineseCalendar`] around a moment: solar terms, lunar months, equation of time (also on a chart, with [`ChartRequest::chinese_calendar`]) |
+//! | [`bazi`] | the Four Pillars ([`Bazi`]) of a birth from its Chinese calendar: hidden stems, Ten Gods, NaYin, element balance, luck pillars (no kernel needed) |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
 //! Astroceleste API, with the same key order and the same integer vs float types. The
@@ -115,6 +117,7 @@ mod almanac;
 mod aspects;
 mod catalog;
 mod chart;
+mod chinese;
 mod chiron;
 mod constants;
 mod degree_qualities;
@@ -144,6 +147,11 @@ mod zodiac;
 pub use aspects::{Aspect, CrossAspect};
 pub use catalog::{DegreeRun, LunarMansion, SignDegrees};
 pub use chart::{calculate_chart, Chart, ChartRequest, HouseCusp, Placement};
+pub use chinese::bazi::{
+    bazi, Bazi, BaziOptions, ElementBalance, HiddenStem, Luck, LuckPillar, LunarDate, Pillar,
+    TermMoment,
+};
+pub use chinese::calendar::{chinese_calendar, ChineseCalendar, LunarMonth, SolarTerm};
 pub use degree_qualities::{degree_qualities, degree_quality_table, DegreeQualities};
 pub use derived::{
     calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,

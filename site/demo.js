@@ -1,6 +1,6 @@
 // Live demo: astroceleste-engine compiled to WebAssembly, computing charts in the browser.
 // pkg/ and ephemeris/ are added by scripts/build-site.sh.
-import init, { Engine, julianDay } from "./pkg/astroceleste_engine_wasm.js";
+import init, { Engine, julianDay, bazi } from "./pkg/astroceleste_engine_wasm.js";
 
 const KERNEL_URL = "ephemeris/de440s-1950-2050.bsp";
 const KERNEL_NAME = "de440s-1950-2050.bsp";
@@ -12,6 +12,8 @@ const SIGNS = [
   ["Libra", "♎", "air"], ["Scorpio", "♏", "water"], ["Sagittarius", "♐", "fire"],
   ["Capricorn", "♑", "earth"], ["Aquarius", "♒", "air"], ["Pisces", "♓", "water"],
 ];
+const STEM_HANZI = { jia: "甲", yi: "乙", bing: "丙", ding: "丁", wu: "戊", ji: "己", geng: "庚", xin: "辛", ren: "壬", gui: "癸" };
+const BRANCH_HANZI = { zi: "子", chou: "丑", yin: "寅", mao: "卯", chen: "辰", si: "巳", wu: "午", wei: "未", shen: "申", you: "酉", xu: "戌", hai: "亥" };
 const ASPECT_CLASS = {
   Conjunction: "neutral", Sextile: "harmonious", Trine: "harmonious",
   Square: "hard", Opposition: "hard", "Semi-Sextile": "harmonious", Quincunx: "hard",
@@ -100,6 +102,7 @@ function readForm() {
     zodiac_type: data.get("zodiac_type"),
     ayanamsa: form.elements.ayanamsa.value,
     dignity_scheme: data.get("dignity_scheme"),
+    chinese_calendar: true,
   };
 }
 
@@ -154,7 +157,7 @@ async function compute() {
 function render(chart, request) {
   $("result").hidden = false;
   renderWheel(chart);
-  renderSummary(chart);
+  renderSummary(chart, request);
   renderTables(chart);
   lastJson = JSON.stringify(chart, null, 2);
   $("json").textContent = lastJson;
@@ -164,7 +167,7 @@ function render(chart, request) {
   );
 }
 
-function renderSummary(chart) {
+function renderSummary(chart, request) {
   const find = (name) => chart.planets.find((p) => p.name === name);
   const rows = [];
   const sun = find("Sun");
@@ -190,6 +193,19 @@ function renderSummary(chart) {
   }
   if (chart.temperament && chart.temperament.primary_temperament) {
     rows.push(["Temperament", `${chart.temperament.primary_temperament} – ${chart.temperament.secondary_temperament}`]);
+  }
+  if (chart.chinese_calendar) {
+    // The demo's times are UTC, so civil time is UTC; the pillars use true solar time.
+    const b = bazi(chart.chinese_calendar, request.utc, request.longitude, 0);
+    const pillar = (p) => `${STEM_HANZI[p.stem]}${BRANCH_HANZI[p.branch]}`;
+    const lunar = b.lunar_date;
+    rows.push([
+      "Four Pillars",
+      `<span lang="zh">${[b.year, b.month, b.day, b.hour].map(pillar).join(" ")}</span>` +
+        `<br><small>Day Master ${b.day_master} (${b.day_master_element})` +
+        (lunar ? `, lunar year of the ${lunar.animal}` : "") +
+        "</small>",
+    ]);
   }
   rows.push([
     "Zodiac",

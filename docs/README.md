@@ -4,6 +4,8 @@
   the result shape and error codes, for Rust, Python and JavaScript.
 - **[Dignities](dignities.md)**: the essential dignities, sect, receptions and antiscia a
   chart carries, with the tables' sources and the two schemes (Lilly, Dorothean).
+- **[Chinese astrology](chinese.md)**: the Chinese calendar of a moment (solar terms,
+  lunar months, leap months) and the Four Pillars (Ba Zi) cast from it.
 - **[Ephemerides](ephemerides.md)**: the JPL kernels the engine reads, date coverage,
   loading kernels from files or memory, and cutting smaller excerpts for the web and mobile.
 - **[Accuracy](accuracy.md)**: how every number is verified against the reference
