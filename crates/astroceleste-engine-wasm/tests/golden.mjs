@@ -131,6 +131,8 @@ assert.strictEqual(lords.firdaria[0].lord, "Saturn");
   assert.deepStrictEqual([purple.life_palace, purple.body_palace, purple.bureau.number], ["wei", "mao", 3]);
   assert.strictEqual(purple.palaces.reduce((n, p) => n + p.stars.length, 0), 28);
   assert.strictEqual(ziWei(calendar, birth, -122.42, -480).decade_direction, null);
+  assert.strictEqual(ziWei(calendar, birth, -122.42, -480, { sex: "male", year: 2026 }).horoscope.yearly.branch, "wu");
+  assert.strictEqual(bazi(calendar, birth, -122.42, -480, { year: 2026 }).annual.stem, "bing");
   assert.throws(() => ziWei(calendar, birth, -122.42, -480, { leap_month: "never" }), (e) => e.code === "invalid_input");
 }
 console.log(`golden checks: ${count} charts ok`);

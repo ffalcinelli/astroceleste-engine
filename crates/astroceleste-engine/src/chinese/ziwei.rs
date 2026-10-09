@@ -24,10 +24,19 @@
 //!   a yin year and a woman, backward otherwise, from the bureau's number of years (nominal
 //!   age, 虛歲). The small limits (小限) start from 辰, 戌, 未 or 丑 by the year branch, forward
 //!   for a man and backward for a woman.
+//! - The 38 minor stars (雜曜) and the four cycles of twelve gods (長生, 博士, 歲前 and 將前)
+//!   follow the common rules, as the iztro project publishes them (its default school, with
+//!   截路 and 空亡 as two stars).
+//! - Each palace's stem flies its own four transformations (飛化) to the palaces of the
+//!   stars it transforms.
+//! - Given a year, the chart carries its horoscope: the decade (or, before the first decade,
+//!   the childhood limit), the small limit and the year (流年), each with its palace, its
+//!   palace names, its four transformations and its moving stars (魁鉞昌曲祿羊陀馬鸞喜), and
+//!   for the year the 歲前 and 將前 gods.
 
 use serde::Serialize;
 
-use super::bazi::{bazi, nayin, BaziOptions, LunarDate};
+use super::bazi::{bazi, nayin, BaziOptions, LunarDate, LIFE_STAGES};
 use super::calendar::ChineseCalendar;
 use super::{cycle_index, year_cycle_index, BRANCHES, STEMS};
 use crate::error::EngineError;
@@ -242,6 +251,44 @@ const BODY_MASTERS: [&str; 12] = [
     TIAN_LIANG, TIAN_TONG, WEN_CHANG, TIAN_JI,
 ];
 
+/// The 博士 cycle, from 祿存.
+const BOSHI: [&str; 12] = [
+    "bo_shi",
+    "li_shi",
+    "qing_long",
+    "xiao_hao",
+    "jiang_jun",
+    "zou_shu",
+    "fei_lian",
+    "xi_shen",
+    "bing_fu",
+    "da_hao",
+    "fu_bing",
+    "guan_fu",
+];
+
+/// The 歲前 cycle, from the year's branch.
+const SUIQIAN: [&str; 12] = [
+    "sui_jian", "hui_qi", "sang_men", "guan_suo", "guan_fu", "xiao_hao", "da_hao", "long_de",
+    "bai_hu", "tian_de", "diao_ke", "bing_fu",
+];
+
+/// The 將前 cycle, from the general star of the year's trine.
+const JIANGQIAN: [&str; 12] = [
+    "jiang_xing",
+    "pan_an",
+    "sui_yi",
+    "xi_shen",
+    "hua_gai",
+    "jie_sha",
+    "zai_sha",
+    "tian_sha",
+    "zhi_bei",
+    "xian_chi",
+    "yue_sha",
+    "wang_shen",
+];
+
 /// Branch indices.
 const ZI: usize = 0;
 const CHOU: usize = 1;
@@ -271,6 +318,8 @@ pub struct ZiWeiOptions<'a> {
     /// "split" (default): a birth after the 15th of a leap month counts in the next month;
     /// "same": every day of a leap month counts in the month it repeats.
     pub leap_month: &'a str,
+    /// A lunar year to cast the horoscope (decade, small limit, year) for.
+    pub year: Option<i32>,
 }
 
 impl Default for ZiWeiOptions<'_> {
@@ -280,6 +329,7 @@ impl Default for ZiWeiOptions<'_> {
             zi_hour: "next_day",
             sex: None,
             leap_month: "split",
+            year: None,
         }
     }
 }
@@ -324,6 +374,83 @@ pub struct ZiWeiPalace {
     pub decade: Option<AgeRange>,
     /// The nominal ages whose small limit falls here, up to 120; empty without the sex.
     pub small_limit_ages: Vec<u8>,
+    /// The minor stars (雜曜) here.
+    pub minor_stars: Vec<&'static str>,
+    /// The gods of the four cycles of twelve here.
+    pub gods: ZiWeiGods,
+    /// The four transformations this palace's stem flies (飛化), to the palaces of the
+    /// stars they transform.
+    pub flying: Vec<ZiWeiTransformation>,
+}
+
+/// The gods of the four cycles of twelve in a palace.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ZiWeiGods {
+    /// Stage of the 長生 cycle, from the bureau (as Ba Zi's `life_stage` codes); `None`
+    /// without the native's sex.
+    pub life_stage: Option<&'static str>,
+    /// God of the 博士 cycle, from 祿存; `None` without the native's sex.
+    pub boshi: Option<&'static str>,
+    /// God of the 歲前 cycle of the birth year.
+    pub suiqian: &'static str,
+    /// God of the 將前 cycle of the birth year.
+    pub jiangqian: &'static str,
+}
+
+/// A moving star of a horoscope period.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ZiWeiFlowStar {
+    /// Star code: "tian_kui", "tian_yue", "wen_chang", "wen_qu", "lu_cun", "qing_yang",
+    /// "tuo_luo", "tian_ma", "hong_luan" or "tian_xi".
+    pub star: &'static str,
+    /// Branch of the palace it moves to.
+    pub branch: &'static str,
+}
+
+/// A god of a yearly cycle of twelve.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ZiWeiGod {
+    /// God code.
+    pub god: &'static str,
+    /// Branch of its palace.
+    pub branch: &'static str,
+}
+
+/// One period of a horoscope: a decade, the childhood limit or a year.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ZiWeiPeriod {
+    /// Branch of the palace the period's life palace falls in.
+    pub branch: &'static str,
+    /// The period's stem (the decade palace's, or the year's).
+    pub stem: &'static str,
+    /// The palace names of the period, by branch, life first.
+    pub palaces: Vec<ZiWeiGod>,
+    /// The four transformations of the period's stem, with the natal palace of each star.
+    pub transformations: Vec<ZiWeiTransformation>,
+    /// The period's moving stars.
+    pub stars: Vec<ZiWeiFlowStar>,
+}
+
+/// The horoscope of a year.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ZiWeiHoroscope {
+    /// The lunar year.
+    pub year: i32,
+    /// Nominal age (虛歲) in that year.
+    pub nominal_age: i32,
+    /// The decade limit running in that year; `None` without the native's sex or outside
+    /// the decades.
+    pub decade: Option<ZiWeiPeriod>,
+    /// Whether `decade` is the childhood limit (童限), before the first decade starts.
+    pub childhood: bool,
+    /// Branch of the small limit's palace; `None` without the native's sex.
+    pub small_limit: Option<&'static str>,
+    /// The year (流年): its life palace is the year's branch.
+    pub yearly: ZiWeiPeriod,
+    /// The 歲前 gods of the year.
+    pub suiqian: Vec<ZiWeiGod>,
+    /// The 將前 gods of the year.
+    pub jiangqian: Vec<ZiWeiGod>,
 }
 
 /// A natal transformation.
@@ -376,6 +503,8 @@ pub struct ZiWei {
     /// "forward" or "backward" (through the branches) for the decade limits; `None`
     /// without the native's sex.
     pub decade_direction: Option<&'static str>,
+    /// The horoscope of the requested year; `None` when none was asked for.
+    pub horoscope: Option<ZiWeiHoroscope>,
 }
 
 fn invalid(message: &str) -> EngineError {
@@ -422,6 +551,177 @@ fn brightness(star: &str, branch: usize) -> Option<&'static str> {
         .and_then(|(_, table)| table[wrap(branch as i64 - YIN as i64)])
 }
 
+/// 天魁 and 天鉞 of a stem.
+fn kui_yue(stem: usize) -> (usize, usize) {
+    match stem {
+        0 | 4 | 6 => (CHOU, WEI),
+        1 | 5 => (ZI, SHEN),
+        2 | 3 => (HAI, YOU),
+        7 => (WU, YIN),
+        _ => (MAO, SI),
+    }
+}
+
+/// 祿存 of a stem.
+fn lu_cun_of(stem: usize) -> usize {
+    [YIN, MAO, SI, WU, SI, WU, SHEN, YOU, HAI, ZI][stem]
+}
+
+/// The trine of a branch: 0 申子辰, 1 巳酉丑, 2 寅午戌, 3 亥卯未.
+fn trine_of(branch: usize) -> usize {
+    branch % 4
+}
+
+/// 天馬 of a branch.
+fn horse_of(branch: usize) -> usize {
+    [YIN, HAI, SHEN, SI][trine_of(branch)]
+}
+
+/// 紅鸞 and 天喜 of a branch.
+fn luan_xi(branch: usize) -> (usize, usize) {
+    let luan = wrap(MAO as i64 - branch as i64);
+    (luan, wrap(luan as i64 + 6))
+}
+
+/// The moving 文昌 and 文曲 of a stem (流昌, 流曲).
+fn flow_chang_qu(stem: usize) -> (usize, usize) {
+    match stem {
+        0 => (SI, YOU),
+        1 => (WU, SHEN),
+        2 | 4 => (SHEN, WU),
+        3 | 5 => (YOU, SI),
+        6 => (HAI, MAO),
+        7 => (ZI, YIN),
+        8 => (YIN, ZI),
+        _ => (MAO, HAI),
+    }
+}
+
+/// The ten moving stars of a period's stem and branch.
+fn flow_stars(stem: usize, branch: usize) -> Vec<ZiWeiFlowStar> {
+    let (kui, yue) = kui_yue(stem);
+    let (chang, qu) = flow_chang_qu(stem);
+    let lu = lu_cun_of(stem) as i64;
+    let (luan, xi) = luan_xi(branch);
+    [
+        (TIAN_KUI, kui),
+        (TIAN_YUE, yue),
+        (WEN_CHANG, chang),
+        (WEN_QU, qu),
+        (LU_CUN, wrap(lu)),
+        (QING_YANG, wrap(lu + 1)),
+        (TUO_LUO, wrap(lu - 1)),
+        (TIAN_MA, horse_of(branch)),
+        ("hong_luan", luan),
+        ("tian_xi", xi),
+    ]
+    .into_iter()
+    .map(|(star, b)| ZiWeiFlowStar {
+        star,
+        branch: BRANCHES[b],
+    })
+    .collect()
+}
+
+/// A cycle of twelve gods laid from `start`, forward or backward.
+fn cycle(gods: &[&'static str; 12], start: usize, forward: bool) -> Vec<ZiWeiGod> {
+    (0..12)
+        .map(|i| ZiWeiGod {
+            god: gods[i],
+            branch: BRANCHES[wrap(start as i64 + if forward { i as i64 } else { -(i as i64) })],
+        })
+        .collect()
+}
+
+/// The 歲前 and 將前 gods of a year's branch.
+fn yearly_gods(branch: usize) -> (Vec<ZiWeiGod>, Vec<ZiWeiGod>) {
+    let general = [ZI, YOU, WU, MAO][trine_of(branch)];
+    (
+        cycle(&SUIQIAN, branch, true),
+        cycle(&JIANGQIAN, general, true),
+    )
+}
+
+/// The 38 minor stars, by branch.
+#[allow(clippy::too_many_arguments)]
+fn minor_stars(
+    year_stem: usize,
+    year_branch: usize,
+    month: i64,
+    day: i64,
+    hour: i64,
+    life: usize,
+    body: usize,
+    anchors: [usize; 4],
+) -> Vec<(usize, &'static str)> {
+    let (s, b, m) = (year_stem, year_branch as i64, month as usize);
+    let [zuo, you, chang, qu] = anchors.map(|a| a as i64);
+    let d = day - 1;
+    let (luan, xi) = luan_xi(year_branch);
+    let (hua_gai, xian_chi) =
+        [(CHEN, YOU), (CHOU, WU), (XU, MAO), (WEI, ZI)][trine_of(year_branch)];
+    let (gu_chen, gua_su) =
+        [(SI, CHOU), (SHEN, CHEN), (HAI, WEI), (YIN, XU)][(year_branch + 10) % 12 / 3];
+    let mut xun_kong = wrap(b + 10 - s as i64);
+    if xun_kong % 2 != year_branch % 2 {
+        xun_kong = wrap(xun_kong as i64 + 1);
+    }
+    // 天傷 sits in the friends palace, 天使 in the health palace.
+    let palace_at = |offset: i64| wrap(life as i64 - offset);
+    vec![
+        (luan, "hong_luan"),
+        (xi, "tian_xi"),
+        (wrap(CHOU as i64 + month), "tian_yao"),
+        (xian_chi, "xian_chi"),
+        ([SHEN, XU, ZI, YIN, CHEN, WU][m / 2], "jie_shen"),
+        (wrap(zuo + d), "san_tai"),
+        (wrap(you - d), "ba_zuo"),
+        (wrap(chang + d - 1), "en_guang"),
+        (wrap(qu + d - 1), "tian_gui"),
+        (wrap(CHEN as i64 + b), "long_chi"),
+        (wrap(XU as i64 - b), "feng_ge"),
+        (wrap(life as i64 + b), "tian_cai"),
+        (wrap(body as i64 + b), "tian_shou"),
+        (wrap(WU as i64 + hour), "tai_fu"),
+        (wrap(YIN as i64 + hour), "feng_gao"),
+        ([SI, SHEN, YIN, HAI][m % 4], "tian_wu"),
+        (hua_gai, "hua_gai"),
+        (
+            [WEI, CHEN, SI, YIN, MAO, YOU, HAI, YOU, XU, WU][s],
+            "tian_guan",
+        ),
+        (
+            [YOU, SHEN, ZI, HAI, MAO, YIN, WU, SI, WU, SI][s],
+            "tian_fu_blessing",
+        ),
+        ([SI, WU, ZI, SI, WU, SHEN, YIN, WU, YOU, HAI][s], "tian_chu"),
+        (
+            [XU, SI, CHEN, YIN, WEI, MAO, HAI, WEI, YIN, WU, XU, YIN][m],
+            "tian_yue_moon",
+        ),
+        (wrap(YOU as i64 + b), "tian_de"),
+        (wrap(SI as i64 + b), "yue_de"),
+        (wrap(b + 1), "tian_kong"),
+        (xun_kong, "xun_kong"),
+        ([SHEN, WU, CHEN, YIN, ZI][s % 5], "jie_lu"),
+        ([YOU, WEI, SI, MAO, CHOU][s % 5], "kong_wang"),
+        (gu_chen, "gu_chen"),
+        (gua_su, "gua_su"),
+        (
+            [SHEN, YOU, XU, SI, WU, WEI, YIN, MAO, CHEN, HAI, ZI, CHOU][year_branch],
+            "fei_lian",
+        ),
+        ([SI, CHOU, YOU][year_branch % 3], "po_sui"),
+        (wrap(YOU as i64 + month), "tian_xing"),
+        ([YIN, ZI, XU, SHEN, WU, CHEN][m % 6], "yin_sha"),
+        (wrap(WU as i64 - b), "tian_ku"),
+        (wrap(WU as i64 + b), "tian_xu"),
+        (palace_at(5), "tian_shi"),
+        (palace_at(7), "tian_shang"),
+        (wrap(XU as i64 - b), "nian_jie"),
+    ]
+}
+
 /// Cast the Purple Star chart of a birth at `birth` (UTC), at `longitude` (degrees east)
 /// where civil time was `utc_offset_minutes` ahead of UTC, from its `calendar`.
 pub fn zi_wei(
@@ -452,6 +752,7 @@ pub fn zi_wei(
             zi_hour: options.zi_hour,
             sex: None,
             luck_pillars: 0,
+            year: None,
         },
     )?;
     let lunar = pillars
@@ -489,26 +790,27 @@ pub fn zi_wei(
         placed.push((wrap(tian_fu_at + offset as i64), star, "major"));
     }
     let (m, h) = (i64::from(month) - 1, hour as i64);
-    let (kui, yue) = match year_stem {
-        0 | 4 | 6 => (CHOU, WEI),
-        1 | 5 => (ZI, SHEN),
-        2 | 3 => (HAI, YOU),
-        7 => (WU, YIN),
-        _ => (MAO, SI),
+    let (kui, yue) = kui_yue(year_stem);
+    let lu_cun = lu_cun_of(year_stem) as i64;
+    let horse = horse_of(year_branch);
+    let (fire, bell, small_start) = match trine_of(year_branch) {
+        0 => (YIN, XU, XU),     // 申子辰
+        1 => (MAO, XU, WEI),    // 巳酉丑
+        2 => (CHOU, MAO, CHEN), // 寅午戌
+        _ => (YOU, XU, CHOU),   // 亥卯未
     };
-    let lu_cun = [YIN, MAO, SI, WU, SI, WU, SHEN, YOU, HAI, ZI][year_stem] as i64;
-    let trine = year_branch % 4; // 申子辰, 巳酉丑, 寅午戌, 亥卯未
-    let (horse, fire, bell, small_start) = match trine {
-        0 => (YIN, YIN, XU, XU),      // 申子辰
-        1 => (HAI, MAO, XU, WEI),     // 巳酉丑
-        2 => (SHEN, CHOU, MAO, CHEN), // 寅午戌
-        _ => (SI, YOU, XU, CHOU),     // 亥卯未
-    };
+    let anchors = [
+        wrap(CHEN as i64 + m),
+        wrap(XU as i64 - m),
+        wrap(XU as i64 - h),
+        wrap(CHEN as i64 + h),
+    ];
+    let [zuo, you, chang, qu] = anchors;
     for (branch, star, kind) in [
-        (wrap(CHEN as i64 + m), ZUO_FU, "auxiliary"),
-        (wrap(XU as i64 - m), YOU_BI, "auxiliary"),
-        (wrap(XU as i64 - h), WEN_CHANG, "auxiliary"),
-        (wrap(CHEN as i64 + h), WEN_QU, "auxiliary"),
+        (zuo, ZUO_FU, "auxiliary"),
+        (you, YOU_BI, "auxiliary"),
+        (chang, WEN_CHANG, "auxiliary"),
+        (qu, WEN_QU, "auxiliary"),
         (kui, TIAN_KUI, "auxiliary"),
         (yue, TIAN_YUE, "auxiliary"),
         (wrap(lu_cun), LU_CUN, "auxiliary"),
@@ -531,11 +833,53 @@ pub fn zi_wei(
             .map(|k| TRANSFORMATION_KINDS[k])
     };
 
-    // Limits.
+    let minor = minor_stars(
+        year_stem,
+        year_branch,
+        m,
+        i64::from(lunar.day),
+        h,
+        life,
+        body,
+        anchors,
+    );
+
+    // Limits and the cycles of twelve.
     let forward = male.map(|male| male == (year_stem % 2 == 0));
     let palace_name = |branch: usize| PALACES[wrap(life as i64 - branch as i64)];
+    let star_branch = |star: &str| placed.iter().find(|(_, s, _)| *s == star).map(|p| p.0);
+    let transformations_of = |stem: usize| -> Vec<ZiWeiTransformation> {
+        TRANSFORMATIONS[stem]
+            .iter()
+            .zip(TRANSFORMATION_KINDS)
+            .filter_map(|(&star, kind)| {
+                Some(ZiWeiTransformation {
+                    kind,
+                    star,
+                    palace: palace_name(star_branch(star)?),
+                })
+            })
+            .collect()
+    };
+    let life_stages = forward.map(|forward| {
+        let start = match bureau.number {
+            2 | 5 => SHEN,
+            3 => HAI,
+            4 => SI,
+            _ => YIN,
+        };
+        cycle(&LIFE_STAGES, start, forward)
+    });
+    let boshi = forward.map(|forward| cycle(&BOSHI, lu_cun as usize, forward));
+    let (suiqian, jiangqian) = yearly_gods(year_branch);
+    let god_at = |gods: &[ZiWeiGod], branch: usize| {
+        gods.iter()
+            .find(|g| g.branch == BRANCHES[branch])
+            .map(|g| g.god)
+            .unwrap_or_default()
+    };
 
-    let palaces = (0..12)
+    let palaces: Vec<ZiWeiPalace> = (0..12)
         .map(|i| {
             let branch = wrap(life as i64 - i);
             let stars = placed
@@ -578,22 +922,76 @@ pub fn zi_wei(
                 stars,
                 decade,
                 small_limit_ages,
+                minor_stars: minor
+                    .iter()
+                    .filter(|(b, _)| *b == branch)
+                    .map(|&(_, star)| star)
+                    .collect(),
+                gods: ZiWeiGods {
+                    life_stage: life_stages.as_ref().map(|g| god_at(g, branch)),
+                    boshi: boshi.as_ref().map(|g| god_at(g, branch)),
+                    suiqian: god_at(&suiqian, branch),
+                    jiangqian: god_at(&jiangqian, branch),
+                },
+                flying: transformations_of(stem_of(branch)),
             }
         })
         .collect();
 
-    let transformations = transformed
-        .iter()
-        .zip(TRANSFORMATION_KINDS)
-        .filter_map(|(&star, kind)| {
-            let &(branch, ..) = placed.iter().find(|(_, s, _)| *s == star)?;
-            Some(ZiWeiTransformation {
-                kind,
-                star,
-                palace: palace_name(branch),
+    let transformations = transformations_of(year_stem);
+
+    // The horoscope of the requested year.
+    let horoscope = options.year.map(|target| {
+        let age = target - lunar.year + 1;
+        let period = |branch: usize, stem: usize, flow_branch: usize| ZiWeiPeriod {
+            branch: BRANCHES[branch],
+            stem: STEMS[stem],
+            palaces: (0..12)
+                .map(|k| ZiWeiGod {
+                    god: PALACES[k],
+                    branch: BRANCHES[wrap(branch as i64 - k as i64)],
+                })
+                .collect(),
+            transformations: transformations_of(stem),
+            stars: flow_stars(stem, flow_branch),
+        };
+        let decade_branch = palaces.iter().find_map(|p: &ZiWeiPalace| {
+            let d = p.decade.as_ref()?;
+            (i32::from(d.start) <= age && age <= i32::from(d.end)).then_some(p.branch)
+        });
+        let childhood = forward.is_some()
+            && decade_branch.is_none()
+            && (1..i32::from(bureau.number)).contains(&age)
+            && age <= 6;
+        let decade_at = decade_branch
+            .and_then(|b| BRANCHES.iter().position(|x| *x == b))
+            .or_else(|| {
+                childhood.then(|| {
+                    let name = ["life", "wealth", "health", "spouse", "fortune", "career"]
+                        [(age - 1) as usize];
+                    wrap(life as i64 - PALACES.iter().position(|p| *p == name).unwrap_or(0) as i64)
+                })
+            });
+        let small_limit = palaces
+            .iter()
+            .find(|p: &&ZiWeiPalace| {
+                u8::try_from(age).is_ok_and(|a| p.small_limit_ages.contains(&a))
             })
-        })
-        .collect();
+            .map(|p| p.branch);
+        let cycle_index = year_cycle_index(target);
+        let (y_stem, y_branch) = (cycle_index % 10, cycle_index % 12);
+        let (suiqian, jiangqian) = yearly_gods(y_branch);
+        ZiWeiHoroscope {
+            year: target,
+            nominal_age: age,
+            decade: decade_at.map(|b| period(b, stem_of(b), b)),
+            childhood: childhood && decade_branch.is_none(),
+            small_limit,
+            yearly: period(y_branch, y_stem, y_branch),
+            suiqian,
+            jiangqian,
+        }
+    });
 
     Ok(ZiWei {
         time_basis: pillars.time_basis,
@@ -609,6 +1007,7 @@ pub fn zi_wei(
         palaces,
         transformations,
         decade_direction: forward.map(|f| if f { "forward" } else { "backward" }),
+        horoscope,
     })
 }
 

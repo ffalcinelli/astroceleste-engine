@@ -303,7 +303,7 @@ fn yes() -> bool {
     true
 }
 
-/// `{ solar_time?, zi_hour?, sex?, luck_pillars? }`
+/// `{ solar_time?, zi_hour?, sex?, luck_pillars?, year? }`
 #[derive(Deserialize)]
 struct BaziRequest {
     #[serde(default = "yes")]
@@ -314,11 +314,13 @@ struct BaziRequest {
     sex: Option<String>,
     #[serde(default)]
     luck_pillars: Option<u8>,
+    #[serde(default)]
+    year: Option<i32>,
 }
 
 /// The Four Pillars of a birth (ISO 8601 UTC) at `longitude` (degrees east) where civil
 /// time was `utcOffsetMinutes` ahead of UTC, from its Chinese `calendar` (the chart's
-/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, luck_pillars? }`, or
+/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, luck_pillars?, year? }`, or
 /// `undefined` for the defaults. No kernel is needed.
 #[wasm_bindgen]
 pub fn bazi(
@@ -337,6 +339,7 @@ pub fn bazi(
         zi_hour: request.zi_hour.as_deref().unwrap_or(defaults.zi_hour),
         sex: request.sex.as_deref(),
         luck_pillars: request.luck_pillars.unwrap_or(defaults.luck_pillars),
+        year: request.year,
     };
     let birth = UtcInstant::parse(birth).map_err(invalid)?;
     to_js(
@@ -345,7 +348,7 @@ pub fn bazi(
     )
 }
 
-/// `{ solar_time?, zi_hour?, sex?, leap_month? }`
+/// `{ solar_time?, zi_hour?, sex?, leap_month?, year? }`
 #[derive(Deserialize)]
 struct ZiWeiRequest {
     #[serde(default = "yes")]
@@ -356,11 +359,13 @@ struct ZiWeiRequest {
     sex: Option<String>,
     #[serde(default)]
     leap_month: Option<String>,
+    #[serde(default)]
+    year: Option<i32>,
 }
 
 /// The Zi Wei Dou Shu chart of a birth (ISO 8601 UTC) at `longitude` (degrees east) where
 /// civil time was `utcOffsetMinutes` ahead of UTC, from its Chinese `calendar` (the chart's
-/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, leap_month? }`, or
+/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, leap_month?, year? }`, or
 /// `undefined` for the defaults. No kernel is needed.
 #[wasm_bindgen(js_name = ziWei)]
 pub fn zi_wei(
@@ -379,6 +384,7 @@ pub fn zi_wei(
         zi_hour: request.zi_hour.as_deref().unwrap_or(defaults.zi_hour),
         sex: request.sex.as_deref(),
         leap_month: request.leap_month.as_deref().unwrap_or(defaults.leap_month),
+        year: request.year,
     };
     let birth = UtcInstant::parse(birth).map_err(invalid)?;
     to_js(

@@ -72,6 +72,7 @@ The arguments are the calendar, the moment of birth (UTC), the longitude of the 
 | `zi_hour` | `next_day`: the Zi hour (23:00–01:00) belongs to the next day; `split`: the day changes at midnight, and the late Zi hour keeps its day (its stem still comes from the next day's) | `next_day` |
 | `sex` | `male` or `female`: sets the direction of the luck pillars, which are left out without it | none |
 | `luck_pillars` | how many ten-year luck pillars to list | 10 |
+| `year` | a year whose pillar (流年) to give as `annual`, seen from the Day Master | none |
 
 ### How the pillars are cast
 
@@ -95,6 +96,7 @@ The year and month compare instants, so the clock the birth was recorded in does
 | `month_term`, `next_term` | the jie term that opened the birth month and the next one |
 | `lunar_date` | the birth date in the lunisolar calendar, with the animal of the lunar year (the popular "Chinese sign", which changes at the New Year) |
 | `luck` | `direction`, `start_age` and the luck pillars (`start_age`, `start`, `end`, `pillar`) |
+| `annual` | the pillar of the requested `year` (it changes at 立春), with its Ten God and hidden stems |
 
 The tables are these:
 
@@ -132,6 +134,7 @@ The arguments are those of `bazi`. The options are `solar_time`, `zi_hour` and `
 | Option | Meaning | Default |
 |---|---|---|
 | `leap_month` | `split`: a birth after the 15th of a leap month counts in the next month; `same`: every day of a leap month counts in the month it repeats | `split` |
+| `year` | a lunar year to cast the horoscope for (see below) | none |
 
 The chart follows the classic rules of the *Zi Wei Dou Shu Quanshu*.
 
@@ -165,6 +168,20 @@ The chart follows the classic rules of the *Zi Wei Dou Shu Quanshu*.
   - They run forward through the branches for a yang year and a man or a yin year and a woman, backward otherwise.
 - **Small limits (小限):** each palace lists the nominal ages up to 120 whose limit falls there. They start from 辰, 戌, 未 or 丑 (for 寅午戌, 申子辰, 巳酉丑 and 亥卯未 years), forward for a man and backward for a woman.
 
+- **Minor stars (雜曜):** the 38 of the common school, in each palace's `minor_stars`:
+  - by the year branch: 紅鸞 and 天喜, 咸池, 華蓋, 孤辰, 寡宿, 蜚廉, 破碎, 龍池, 鳳閣, 天哭, 天虛, 天德, 月德, 天空, 年解;
+  - by the year stem: 天官, 天福 (`tian_fu_blessing`), 天廚, 截路, 空亡; by both: 旬空;
+  - by the month: 天姚, 天刑, 解神, 陰煞, 天月 (`tian_yue_moon`), 天巫;
+  - by the day, from 左輔, 右弼, 文昌 and 文曲: 三台, 八座, 恩光, 天貴;
+  - by the hour: 台輔, 封誥;
+  - from the life and body palaces: 天才, 天壽; in the friends and health palaces: 天傷, 天使.
+- **Cycles of twelve gods** (each palace's `gods`):
+  - 長生 (`life_stage`, the same codes as Ba Zi's), from 申, 亥, 巳, 申 or 寅 by the bureau;
+  - 博士 (`boshi`), from 祿存;
+  - both forward for a yang year and a man or a yin year and a woman, backward otherwise, so they need the sex;
+  - 歲前 (`suiqian`), from the year's branch; 將前 (`jiangqian`), from the general star of the year's trine (子, 酉, 午 or 卯).
+- **Flying transformations (飛化):** each palace's `flying` lists the four transformations of its own stem and the palaces of the stars they reach. One that lands in the same palace is a self-transformation (自化).
+
 The result carries:
 - `lunar_date`;
 - `month`: the month the chart is cast with;
@@ -174,8 +191,27 @@ The result carries:
 - `life_master` and `body_master`;
 - `palaces`: from the life palace, each with `name`, `branch`, `stem`, `is_body`, `stars` (`star`, `kind`, `brightness`, `transformation`), `decade` and `small_limit_ages`;
 - `transformations` (`kind`, `star`, `palace`);
-- `decade_direction`.
+- `decade_direction`;
+- `horoscope`, when a `year` is given.
+
+### The horoscope of a year
+
+With `year`, the chart carries `horoscope`:
+
+- **`nominal_age`:** the year minus the lunar year of birth, plus one (虛歲, counted by calendar years).
+- **`decade`:** the decade limit holding that age. Before the first decade starts, it is the childhood limit (童限, `childhood: true`): the life, wealth, health, spouse, fortune and career palaces for ages 1 to 6.
+- **`small_limit`:** the branch of the small limit's palace.
+- **`yearly`:** the year (流年), whose life palace is the year's branch.
+- Each period (`decade`, `yearly`) gives:
+  - its `branch` and `stem` (the decade palace's stem, or the year's);
+  - `palaces`: its palace names by branch, life first;
+  - `transformations`: the four of its stem, with the natal palace of each star;
+  - `stars`: its moving stars 魁, 鉞, 昌, 曲, 祿, 羊, 陀, 馬, 鸞 and 喜. The moving 昌 and 曲 follow the stem (甲 巳/酉, 乙 午/申, 丙戊 申/午, 丁己 酉/巳, 庚 亥/卯, 辛 子/寅, 壬 寅/子, 癸 卯/亥).
+- **`suiqian` and `jiangqian`:** the year's 歲前 and 將前 gods.
+
+The decade, childhood and small limits need the native's sex.
 
 The tests check:
 - a published chart against the values iztro gives for it;
-- the geometry of 300 charts: every star once, Tian Fu mirroring Zi Wei, Qi Sha opposite Tian Fu, the lambs either side of Lu Cun, and ages 1–120 each in exactly one small limit.
+- the geometry of 300 charts: every star once (28 main and 38 minor), Tian Fu mirroring Zi Wei, Qi Sha opposite Tian Fu, the lambs either side of Lu Cun, each cycle of twelve gods in twelve palaces, and ages 1–120 each in exactly one small limit;
+- the minor stars and the cycles of gods of a palace, and the horoscope of a year and of childhood.

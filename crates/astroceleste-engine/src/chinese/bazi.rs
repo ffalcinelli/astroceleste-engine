@@ -90,7 +90,7 @@ pub(crate) fn nayin(pair: usize) -> &'static str {
 }
 
 /// The twelve stages of life (十二長生), from Birth.
-const LIFE_STAGES: [&str; 12] = [
+pub(crate) const LIFE_STAGES: [&str; 12] = [
     "birth",
     "bath",
     "cap_and_belt",
@@ -141,6 +141,8 @@ pub struct BaziOptions<'a> {
     pub sex: Option<&'a str>,
     /// How many ten-year luck pillars to list (default 10).
     pub luck_pillars: u8,
+    /// A year whose pillar (流年, changing at 立春) to give, seen from the Day Master.
+    pub year: Option<i32>,
 }
 
 impl Default for BaziOptions<'_> {
@@ -150,6 +152,7 @@ impl Default for BaziOptions<'_> {
             zi_hour: "next_day",
             sex: None,
             luck_pillars: 10,
+            year: None,
         }
     }
 }
@@ -296,6 +299,8 @@ pub struct Bazi {
     pub lunar_date: Option<LunarDate>,
     /// The luck pillars; `None` without the native's sex.
     pub luck: Option<Luck>,
+    /// The pillar of the requested year (流年), seen from the Day Master.
+    pub annual: Option<Pillar>,
 }
 
 fn invalid(message: &str) -> EngineError {
@@ -520,5 +525,8 @@ pub fn bazi(
         next_term: term_moment(next_term),
         lunar_date: lunar_date(calendar, day)?,
         luck,
+        annual: options
+            .year
+            .map(|year| pillar(year_cycle_index(year), master, false)),
     })
 }

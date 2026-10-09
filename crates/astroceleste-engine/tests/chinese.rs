@@ -489,6 +489,32 @@ fn zi_wei_charts_are_well_formed() {
         };
         let all: usize = chart.palaces.iter().map(|p| p.stars.len()).sum();
         assert_eq!(all, 28, "{utc}");
+        let minor: usize = chart.palaces.iter().map(|p| p.minor_stars.len()).sum();
+        assert_eq!(minor, 38, "{utc}");
+        assert!(chart.palaces.iter().all(|p| p.flying.len() == 4));
+        for gods in [
+            chart
+                .palaces
+                .iter()
+                .map(|p| p.gods.suiqian)
+                .collect::<Vec<_>>(),
+            chart.palaces.iter().map(|p| p.gods.jiangqian).collect(),
+            chart
+                .palaces
+                .iter()
+                .map(|p| p.gods.boshi.unwrap())
+                .collect(),
+            chart
+                .palaces
+                .iter()
+                .map(|p| p.gods.life_stage.unwrap())
+                .collect(),
+        ] {
+            let mut unique = gods.clone();
+            unique.sort_unstable();
+            unique.dedup();
+            assert_eq!(unique.len(), 12, "{gods:?}");
+        }
         let majors: usize = chart
             .palaces
             .iter()
@@ -568,4 +594,85 @@ fn zi_wei_leap_months_and_options() {
     ] {
         assert!(zi_wei(&cal, at(utc), 116.4, 480.0, &bad).is_err());
     }
+}
+
+#[test]
+fn zi_wei_minor_stars_and_gods_match_iztro() {
+    let Some(kernels) = kernels() else { return };
+    let options = ZiWeiOptions {
+        solar_time: false,
+        sex: Some("male"),
+        ..ZiWeiOptions::default()
+    };
+    let chart = zi_wei_chart(&kernels, "1940-11-27T15:12:00Z", -122.42, -480.0, &options);
+    // iztro: 寅 holds 天廚, 天哭 and 天使; 臨官, 飛廉, 歲驛 and 弔客.
+    let yin = palace_at(&chart, "yin");
+    assert_eq!(yin.minor_stars, ["tian_chu", "tian_ku", "tian_shi"]);
+    assert_eq!(yin.gods.life_stage, Some("coming_of_age"));
+    assert_eq!(yin.gods.boshi, Some("fei_lian"));
+    assert_eq!(yin.gods.jiangqian, "sui_yi");
+    assert_eq!(yin.gods.suiqian, "diao_ke");
+    // The life palace's stem 癸 flies 破軍 祿, 巨門 權, 太陰 科, 貪狼 忌.
+    let flying: Vec<_> = chart.palaces[0].flying.iter().map(|t| t.star).collect();
+    assert_eq!(flying, ["po_jun", "ju_men", "tai_yin", "tan_lang"]);
+    assert!(chart.horoscope.is_none());
+}
+
+#[test]
+fn zi_wei_horoscope() {
+    let Some(kernels) = kernels() else { return };
+    let birth = "1940-11-27T15:12:00Z";
+    let options = |year| ZiWeiOptions {
+        solar_time: false,
+        sex: Some("male"),
+        year: Some(year),
+        ..ZiWeiOptions::default()
+    };
+    let chart = zi_wei_chart(&kernels, birth, -122.42, -480.0, &options(2026));
+    let h = chart.horoscope.as_ref().unwrap();
+    assert_eq!((h.year, h.nominal_age, h.childhood), (2026, 87, false));
+    // The decade palace is the one whose limit holds 87.
+    let decade = h.decade.as_ref().unwrap();
+    let ruling = palace_at(&chart, decade.branch).decade.as_ref().unwrap();
+    assert!(ruling.start <= 87 && 87 <= ruling.end);
+    assert_eq!(decade.palaces[0].branch, decade.branch);
+    assert_eq!(decade.palaces[0].god, "life");
+    // 2026 is 丙午: the year's life palace is 午, its transformations those of 丙.
+    assert_eq!((h.yearly.branch, h.yearly.stem), ("wu", "bing"));
+    let stars: Vec<_> = h.yearly.transformations.iter().map(|t| t.star).collect();
+    assert_eq!(stars, ["tian_tong", "tian_ji", "wen_chang", "lian_zhen"]);
+    assert_eq!(h.yearly.stars.len(), 10);
+    assert_eq!(h.suiqian[0].branch, "wu");
+    assert_eq!(h.jiangqian[0].branch, "wu"); // 寅午戌: the general star in 午
+    let small = h.small_limit.unwrap();
+    assert!(palace_at(&chart, small).small_limit_ages.contains(&87));
+
+    // Before the wood bureau's first decade (age 3): the childhood limit.
+    let young = zi_wei_chart(&kernels, birth, -122.42, -480.0, &options(1941));
+    let h = young.horoscope.unwrap();
+    assert_eq!((h.nominal_age, h.childhood), (2, true));
+    let wealth = young.palaces.iter().find(|p| p.name == "wealth").unwrap();
+    assert_eq!(h.decade.unwrap().branch, wealth.branch);
+}
+
+#[test]
+fn bazi_annual_pillar() {
+    let Some(kernels) = kernels() else { return };
+    let utc = "1940-11-27T15:12:00Z";
+    let cal = calendar(&kernels, utc);
+    let options = BaziOptions {
+        year: Some(2026),
+        ..BaziOptions::default()
+    };
+    let b = bazi(&cal, at(utc), -122.42, -480.0, &options).unwrap();
+    // 2026 is 丙午; 丙 is the Eating God of a 甲 Day Master.
+    let annual = b.annual.unwrap();
+    assert_eq!((annual.stem, annual.branch), ("bing", "wu"));
+    assert_eq!(annual.ten_god, Some("eating_god"));
+    assert!(
+        bazi(&cal, at(utc), -122.42, -480.0, &BaziOptions::default())
+            .unwrap()
+            .annual
+            .is_none()
+    );
 }

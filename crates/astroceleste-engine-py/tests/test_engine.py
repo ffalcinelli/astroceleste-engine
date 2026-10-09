@@ -248,6 +248,10 @@ def test_zi_wei():
     assert len(chart["palaces"]) == 12
     assert sum(len(p["stars"]) for p in chart["palaces"]) == 28
     assert ace.zi_wei(calendar, birth, -122.42, -480)["decade_direction"] is None
+    assert sum(len(p["minor_stars"]) for p in chart["palaces"]) == 38
+    horoscope = ace.zi_wei(calendar, birth, -122.42, -480, sex="male", year=2026)["horoscope"]
+    assert horoscope["yearly"]["branch"] == "wu"
+    assert ace.bazi(calendar, birth, -122.42, -480, year=2026)["annual"]["stem"] == "bing"
     with pytest.raises(ValueError):
         ace.zi_wei(calendar, birth, -122.42, -480, leap_month="never")
     json.dumps(chart)
