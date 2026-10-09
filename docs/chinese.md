@@ -135,6 +135,7 @@ The arguments are those of `bazi`. The options are `solar_time`, `zi_hour` and `
 |---|---|---|
 | `leap_month` | `split`: a birth after the 15th of a leap month counts in the next month; `same`: every day of a leap month counts in the month it repeats | `split` |
 | `year` | a lunar year to cast the horoscope for (see below) | none |
+| `date` | a date, `YYYY-MM-DD`, to cast the horoscope for down to its month and day; its lunar year replaces `year` | none |
 
 The chart follows the classic rules of the *Zi Wei Dou Shu Quanshu*.
 
@@ -208,10 +209,17 @@ With `year`, the chart carries `horoscope`:
   - `transformations`: the four of its stem, with the natal palace of each star;
   - `stars`: its moving stars 魁, 鉞, 昌, 曲, 祿, 羊, 陀, 馬, 鸞 and 喜. The moving 昌 and 曲 follow the stem (甲 巳/酉, 乙 午/申, 丙戊 申/午, 丁己 酉/巳, 庚 亥/卯, 辛 子/寅, 壬 寅/子, 癸 卯/亥).
 - **`suiqian` and `jiangqian`:** the year's 歲前 and 將前 gods.
+- **With a `date`:**
+  - `date` and its `lunar_date`;
+  - `monthly` (流月): month 1 is counted from the year's palace back to the birth month and forward to the birth hour (斗君), one palace a month. A date after the 15th of a leap month counts in the next month. Its stem and branch are the lunar month's (五虎遁 from the year's stem).
+  - `daily` (流日): from the month's palace, one palace a day; its stem and branch are the day's.
+
+  Dates are read in the lunar calendar from an embedded table of the lunar years 1900 to 2100, generated from the engine's own calendar and checked against it. So a date needs no kernel.
 
 The decade, childhood and small limits need the native's sex.
 
 The tests check:
 - a published chart against the values iztro gives for it;
 - the geometry of 300 charts: every star once (28 main and 38 minor), Tian Fu mirroring Zi Wei, Qi Sha opposite Tian Fu, the lambs either side of Lu Cun, each cycle of twelve gods in twelve palaces, and ages 1–120 each in exactly one small limit;
-- the minor stars and the cycles of gods of a palace, and the horoscope of a year and of childhood.
+- the minor stars and the cycles of gods of a palace, and the horoscope of a year and of childhood;
+- 120 charts and 80 horoscopes against [iztro](https://github.com/SylarLong/iztro), the reference implementation of the common school (`tests/ziwei_iztro.rs`). They match it in every palace, star, brightness, transformation, minor star, god, limit and period. The fixtures come from `scripts/make_ziwei_fixtures.cjs` and `scripts/make_ziwei_horoscope_fixtures.cjs`. The one known difference: iztro gives placeholder values for a date before the birth, where the engine gives no decade or small limit.

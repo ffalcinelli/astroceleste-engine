@@ -72,7 +72,10 @@ Core pipeline (`crates/astroceleste-engine/src`):
   `calculate_chart`'s positions. `chinese/` (`docs/chinese.md`) holds the Chinese calendar
   (solar-term and new-moon searches; added to a chart only when `ChartRequest::chinese_calendar`
   is set) and the kernel-free Ba Zi and Zi Wei Dou Shu (`ziwei.rs`, brightness table from iztro,
-  see NOTICE); `tests/chinese.rs` checks it against published dates.
+  see NOTICE); `tests/chinese.rs` checks it against published dates, `tests/ziwei_iztro.rs`
+  against charts from iztro (fixtures from `scripts/make_ziwei_*fixtures.cjs`, run with iztro
+  installed in a scratch directory), and `chinese/lunar_table.rs` embeds the lunar years
+  1900-2100 (regenerate with its ignored `print_table` test).
 - `catalog/` — static tables (fixed stars, lunar mansions, derived-house meanings), generated
   code excluded from rustfmt/clippy.
 

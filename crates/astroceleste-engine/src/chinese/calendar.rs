@@ -410,3 +410,49 @@ fn calendar(kernels: &KernelSet, instant: UtcInstant) -> Result<ChineseCalendar,
         lunar_months,
     })
 }
+
+/// A lunar year of the calendar: its New Year and its months in order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LunarYear {
+    /// The Gregorian year its New Year falls in.
+    pub year: i32,
+    /// Julian day number of the New Year.
+    pub start: i64,
+    /// Lengths of its months in order (29 or 30), the leap month in its place.
+    pub days: Vec<u8>,
+    /// Number of the month the leap month repeats, 0 without one.
+    pub leap: u8,
+}
+
+/// The lunar years `first..=last`, from the ephemeris (for the embedded table and its test).
+#[cfg(test)]
+pub(crate) fn lunar_years(
+    kernels: &KernelSet,
+    first: i32,
+    last: i32,
+) -> Result<Vec<LunarYear>, EngineError> {
+    let sky = Sky { kernels };
+    let december = |year: i32| UtcInstant::from_civil(year, 12, 10, 0, 0, 0, 0).julian_day();
+    let mut solstice = sky.sun_at(270.0, december(first - 1))?;
+    let mut months = Vec::new();
+    loop {
+        let (mut sui, _, next) = sky.sui(solstice)?;
+        let done = sui.last().is_some_and(|m| m.year > last);
+        months.append(&mut sui);
+        if done {
+            break;
+        }
+        solstice = next;
+    }
+    Ok((first..=last)
+        .map(|year| {
+            let of_year: Vec<&Month> = months.iter().filter(|m| m.year == year).collect();
+            LunarYear {
+                year,
+                start: of_year[0].start,
+                days: of_year.iter().map(|m| (m.end - m.start) as u8).collect(),
+                leap: of_year.iter().find(|m| m.leap).map_or(0, |m| m.number),
+            }
+        })
+        .collect())
+}

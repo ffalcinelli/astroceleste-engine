@@ -32,12 +32,15 @@
 //! - Given a year, the chart carries its horoscope: the decade (or, before the first decade,
 //!   the childhood limit), the small limit and the year (流年), each with its palace, its
 //!   palace names, its four transformations and its moving stars (魁鉞昌曲祿羊陀馬鸞喜), and
-//!   for the year the 歲前 and 將前 gods.
+//!   for the year the 歲前 and 將前 gods. Given a date, the horoscope goes down to its month
+//!   (流月, by 斗君: month 1 is counted from the year's palace back to the birth month and
+//!   forward to the birth hour) and its day (流日), from an embedded lunar calendar.
 
 use serde::Serialize;
 
 use super::bazi::{bazi, nayin, BaziOptions, LunarDate, LIFE_STAGES};
-use super::calendar::ChineseCalendar;
+use super::calendar::{day_number, ChineseCalendar};
+use super::lunar_table::lunar_date_of;
 use super::{cycle_index, year_cycle_index, BRANCHES, STEMS};
 use crate::error::EngineError;
 use crate::instant::UtcInstant;
@@ -320,6 +323,9 @@ pub struct ZiWeiOptions<'a> {
     pub leap_month: &'a str,
     /// A lunar year to cast the horoscope (decade, small limit, year) for.
     pub year: Option<i32>,
+    /// A date, `YYYY-MM-DD`, to cast the horoscope for down to its month (流月) and day
+    /// (流日); its lunar year replaces `year`. Dates from the lunar years 1900 to 2100.
+    pub date: Option<&'a str>,
 }
 
 impl Default for ZiWeiOptions<'_> {
@@ -330,6 +336,7 @@ impl Default for ZiWeiOptions<'_> {
             sex: None,
             leap_month: "split",
             year: None,
+            date: None,
         }
     }
 }
@@ -451,6 +458,15 @@ pub struct ZiWeiHoroscope {
     pub suiqian: Vec<ZiWeiGod>,
     /// The 將前 gods of the year.
     pub jiangqian: Vec<ZiWeiGod>,
+    /// The date read, when one was given.
+    pub date: Option<String>,
+    /// Its lunar date.
+    pub lunar_date: Option<LunarDate>,
+    /// The month (流月) of the date: month 1 is counted from the year's palace back to the
+    /// birth month and forward to the birth hour (斗君), one palace a month.
+    pub monthly: Option<ZiWeiPeriod>,
+    /// The day (流日) of the date: from the month's palace, one palace a day.
+    pub daily: Option<ZiWeiPeriod>,
 }
 
 /// A natal transformation.
@@ -941,57 +957,105 @@ pub fn zi_wei(
     let transformations = transformations_of(year_stem);
 
     // The horoscope of the requested year.
-    let horoscope = options.year.map(|target| {
-        let age = target - lunar.year + 1;
-        let period = |branch: usize, stem: usize, flow_branch: usize| ZiWeiPeriod {
-            branch: BRANCHES[branch],
-            stem: STEMS[stem],
-            palaces: (0..12)
-                .map(|k| ZiWeiGod {
-                    god: PALACES[k],
-                    branch: BRANCHES[wrap(branch as i64 - k as i64)],
-                })
-                .collect(),
-            transformations: transformations_of(stem),
-            stars: flow_stars(stem, flow_branch),
-        };
-        let decade_branch = palaces.iter().find_map(|p: &ZiWeiPalace| {
-            let d = p.decade.as_ref()?;
-            (i32::from(d.start) <= age && age <= i32::from(d.end)).then_some(p.branch)
-        });
-        let childhood = forward.is_some()
-            && decade_branch.is_none()
-            && (1..i32::from(bureau.number)).contains(&age)
-            && age <= 6;
-        let decade_at = decade_branch
-            .and_then(|b| BRANCHES.iter().position(|x| *x == b))
-            .or_else(|| {
-                childhood.then(|| {
-                    let name = ["life", "wealth", "health", "spouse", "fortune", "career"]
-                        [(age - 1) as usize];
-                    wrap(life as i64 - PALACES.iter().position(|p| *p == name).unwrap_or(0) as i64)
-                })
+    let target_date = options
+        .date
+        .map(|text| {
+            let day = UtcInstant::parse(&format!("{text}T00:00:00Z"))
+                .map(day_number)
+                .map_err(|_| invalid("date must be YYYY-MM-DD"))?;
+            let (y, m, leap, d) = lunar_date_of(day)
+                .ok_or_else(|| invalid("date is outside the lunar years 1900-2100"))?;
+            Ok::<_, EngineError>((text.to_string(), day, y, m, leap, d))
+        })
+        .transpose()?;
+    let horoscope = target_date
+        .as_ref()
+        .map(|t| t.2)
+        .or(options.year)
+        .map(|target| {
+            let age = target - lunar.year + 1;
+            let period = |branch: usize, stem: usize, flow_branch: usize| ZiWeiPeriod {
+                branch: BRANCHES[branch],
+                stem: STEMS[stem],
+                palaces: (0..12)
+                    .map(|k| ZiWeiGod {
+                        god: PALACES[k],
+                        branch: BRANCHES[wrap(branch as i64 - k as i64)],
+                    })
+                    .collect(),
+                transformations: transformations_of(stem),
+                stars: flow_stars(stem, flow_branch),
+            };
+            let decade_branch = palaces.iter().find_map(|p: &ZiWeiPalace| {
+                let d = p.decade.as_ref()?;
+                (i32::from(d.start) <= age && age <= i32::from(d.end)).then_some(p.branch)
             });
-        let small_limit = palaces
-            .iter()
-            .find(|p: &&ZiWeiPalace| {
-                u8::try_from(age).is_ok_and(|a| p.small_limit_ages.contains(&a))
-            })
-            .map(|p| p.branch);
-        let cycle_index = year_cycle_index(target);
-        let (y_stem, y_branch) = (cycle_index % 10, cycle_index % 12);
-        let (suiqian, jiangqian) = yearly_gods(y_branch);
-        ZiWeiHoroscope {
-            year: target,
-            nominal_age: age,
-            decade: decade_at.map(|b| period(b, stem_of(b), b)),
-            childhood: childhood && decade_branch.is_none(),
-            small_limit,
-            yearly: period(y_branch, y_stem, y_branch),
-            suiqian,
-            jiangqian,
-        }
-    });
+            let childhood = forward.is_some()
+                && decade_branch.is_none()
+                && (1..i32::from(bureau.number)).contains(&age)
+                && age <= 6;
+            let decade_at = decade_branch
+                .and_then(|b| BRANCHES.iter().position(|x| *x == b))
+                .or_else(|| {
+                    childhood.then(|| {
+                        let name = ["life", "wealth", "health", "spouse", "fortune", "career"]
+                            [(age - 1) as usize];
+                        wrap(
+                            life as i64
+                                - PALACES.iter().position(|p| *p == name).unwrap_or(0) as i64,
+                        )
+                    })
+                });
+            let small_limit = palaces
+                .iter()
+                .find(|p: &&ZiWeiPalace| {
+                    u8::try_from(age).is_ok_and(|a| p.small_limit_ages.contains(&a))
+                })
+                .map(|p| p.branch);
+            let cycle_index = year_cycle_index(target);
+            let (y_stem, y_branch) = (cycle_index % 10, cycle_index % 12);
+            let (suiqian, jiangqian) = yearly_gods(y_branch);
+            // The month and day of the date read.
+            let flows = target_date.as_ref().map(|(_, day, _, m, leap, d)| {
+                let m = if *leap && *d > 15 { m % 12 + 1 } else { *m };
+                let month_palace =
+                    wrap(y_branch as i64 - i64::from(month) + hour as i64 + i64::from(m));
+                let month_branch = wrap(YIN as i64 + i64::from(m) - 1);
+                let month_stem = (y_stem % 5 * 2 + 2 + usize::from(m) - 1) % 10;
+                let day_cycle = (day - 11).rem_euclid(60) as usize;
+                let day_palace = wrap(month_palace as i64 + i64::from(*d) - 1);
+                (
+                    period(month_palace, month_stem, month_branch),
+                    period(day_palace, day_cycle % 10, day_cycle % 12),
+                )
+            });
+            let (monthly, daily) = flows.map_or((None, None), |(m, d)| (Some(m), Some(d)));
+            ZiWeiHoroscope {
+                year: target,
+                nominal_age: age,
+                decade: decade_at.map(|b| period(b, stem_of(b), b)),
+                childhood: childhood && decade_branch.is_none(),
+                small_limit,
+                yearly: period(y_branch, y_stem, y_branch),
+                suiqian,
+                jiangqian,
+                date: target_date.as_ref().map(|t| t.0.clone()),
+                lunar_date: target_date.as_ref().map(|&(_, _, y, m, leap, d)| {
+                    let cycle = year_cycle_index(y);
+                    LunarDate {
+                        year: y,
+                        month: m,
+                        leap,
+                        day: d,
+                        year_stem: STEMS[cycle % 10],
+                        year_branch: BRANCHES[cycle % 12],
+                        animal: super::ANIMALS[cycle % 12],
+                    }
+                }),
+                monthly,
+                daily,
+            }
+        });
 
     Ok(ZiWei {
         time_basis: pillars.time_basis,

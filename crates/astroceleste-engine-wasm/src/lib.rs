@@ -348,7 +348,7 @@ pub fn bazi(
     )
 }
 
-/// `{ solar_time?, zi_hour?, sex?, leap_month?, year? }`
+/// `{ solar_time?, zi_hour?, sex?, leap_month?, year?, date? }`
 #[derive(Deserialize)]
 struct ZiWeiRequest {
     #[serde(default = "yes")]
@@ -361,11 +361,13 @@ struct ZiWeiRequest {
     leap_month: Option<String>,
     #[serde(default)]
     year: Option<i32>,
+    #[serde(default)]
+    date: Option<String>,
 }
 
 /// The Zi Wei Dou Shu chart of a birth (ISO 8601 UTC) at `longitude` (degrees east) where
 /// civil time was `utcOffsetMinutes` ahead of UTC, from its Chinese `calendar` (the chart's
-/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, leap_month?, year? }`, or
+/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, leap_month?, year?, date? }`, or
 /// `undefined` for the defaults. No kernel is needed.
 #[wasm_bindgen(js_name = ziWei)]
 pub fn zi_wei(
@@ -385,6 +387,7 @@ pub fn zi_wei(
         sex: request.sex.as_deref(),
         leap_month: request.leap_month.as_deref().unwrap_or(defaults.leap_month),
         year: request.year,
+        date: request.date.as_deref(),
     };
     let birth = UtcInstant::parse(birth).map_err(invalid)?;
     to_js(

@@ -130,5 +130,6 @@ def zi_wei(
     sex: str | None = None,
     leap_month: str = "split",
     year: int | None = None,
+    date: str | None = None,
 ) -> dict[str, Any]:
     """The Zi Wei Dou Shu chart of a birth from its Chinese calendar (a chart's chinese_calendar)."""

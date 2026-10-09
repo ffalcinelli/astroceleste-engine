@@ -506,7 +506,7 @@ fn bazi(
 /// civil time was `utc_offset_minutes` ahead of UTC, from its Chinese `calendar` (the
 /// chart's `chinese_calendar`). No kernel is needed.
 #[pyfunction]
-#[pyo3(signature = (calendar, moment, longitude, utc_offset_minutes, solar_time=true, zi_hour="next_day", sex=None, leap_month="split", year=None))]
+#[pyo3(signature = (calendar, moment, longitude, utc_offset_minutes, solar_time=true, zi_hour="next_day", sex=None, leap_month="split", year=None, date=None))]
 #[allow(clippy::too_many_arguments)]
 fn zi_wei(
     py: Python<'_>,
@@ -519,6 +519,7 @@ fn zi_wei(
     sex: Option<&str>,
     leap_month: &str,
     year: Option<i32>,
+    date: Option<&str>,
 ) -> PyResult<Py<PyAny>> {
     let calendar: ChineseCalendar = serde_json::from_value(to_value(calendar)?)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -528,6 +529,7 @@ fn zi_wei(
         sex,
         leap_month,
         year,
+        date,
     };
     let chart = core_zi_wei(
         &calendar,
