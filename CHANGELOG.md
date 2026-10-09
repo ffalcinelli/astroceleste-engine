@@ -8,6 +8,15 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.11]
+
+### Added
+
+- Zi Wei Dou Shu: the `date` option casts the horoscope down to the month (流月) and day
+  (流日) of a date, read in an embedded lunar calendar for 1900-2100 (no kernel needed).
+- 120 charts and 80 horoscopes checked against iztro, the reference implementation of the
+  common school.
+
 ## [0.0.10]
 
 ### Added
