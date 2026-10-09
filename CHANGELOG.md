@@ -8,6 +8,17 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.9]
+
+### Added
+
+- Zi Wei Dou Shu: `zi_wei(calendar, birth, longitude, utc_offset_minutes, options)` (no
+  kernel needed; Python `zi_wei`, JavaScript `ziWei`) casts the Purple Star chart from a
+  chart's Chinese calendar: life and body palaces, palace stems, the five-element bureau,
+  the 14 major stars and 14 auxiliary and malefic stars with their brightness, the natal
+  Four Transformations, the life and body masters, and (given the native's sex) the decade
+  and small limits. Leap months split at the 15th by default. See `docs/chinese.md`.
+
 ## [0.0.8]
 
 ### Added
