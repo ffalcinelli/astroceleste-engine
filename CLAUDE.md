@@ -71,7 +71,8 @@ Core pipeline (`crates/astroceleste-engine/src`):
   re-assesses each window's best moment exactly. Keep the lean `chart::sky` path identical to
   `calculate_chart`'s positions. `chinese/` (`docs/chinese.md`) holds the Chinese calendar
   (solar-term and new-moon searches; added to a chart only when `ChartRequest::chinese_calendar`
-  is set) and the kernel-free Ba Zi; `tests/chinese.rs` checks it against published dates.
+  is set) and the kernel-free Ba Zi and Zi Wei Dou Shu (`ziwei.rs`, brightness table from iztro,
+  see NOTICE); `tests/chinese.rs` checks it against published dates.
 - `catalog/` — static tables (fixed stars, lunar mansions, derived-house meanings), generated
   code excluded from rustfmt/clippy.
 

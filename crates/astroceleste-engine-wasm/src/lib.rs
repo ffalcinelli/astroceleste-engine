@@ -18,8 +18,8 @@ use astroceleste_engine::{
     calculate_horary_chart, calculate_synastry, calculate_transit_chart,
     chart_dignities as core_chart_dignities, degree_qualities as core_degree_qualities,
     degree_quality_table as core_degree_quality_table, search_elections,
-    time_lords as core_time_lords, BaziOptions, ChartRequest, ChineseCalendar, ElectionCriteria,
-    EngineError, UtcInstant,
+    time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions, ChartRequest,
+    ChineseCalendar, ElectionCriteria, EngineError, UtcInstant, ZiWeiOptions,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -341,6 +341,48 @@ pub fn bazi(
     let birth = UtcInstant::parse(birth).map_err(invalid)?;
     to_js(
         &core_bazi(&calendar, birth, longitude, utc_offset_minutes, &options)
+            .map_err(engine_error)?,
+    )
+}
+
+/// `{ solar_time?, zi_hour?, sex?, leap_month? }`
+#[derive(Deserialize)]
+struct ZiWeiRequest {
+    #[serde(default = "yes")]
+    solar_time: bool,
+    #[serde(default)]
+    zi_hour: Option<String>,
+    #[serde(default)]
+    sex: Option<String>,
+    #[serde(default)]
+    leap_month: Option<String>,
+}
+
+/// The Zi Wei Dou Shu chart of a birth (ISO 8601 UTC) at `longitude` (degrees east) where
+/// civil time was `utcOffsetMinutes` ahead of UTC, from its Chinese `calendar` (the chart's
+/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, leap_month? }`, or
+/// `undefined` for the defaults. No kernel is needed.
+#[wasm_bindgen(js_name = ziWei)]
+pub fn zi_wei(
+    calendar: JsValue,
+    birth: &str,
+    longitude: f64,
+    #[wasm_bindgen(js_name = utcOffsetMinutes)] utc_offset_minutes: f64,
+    options: JsValue,
+) -> Result<JsValue, JsValue> {
+    let calendar: ChineseCalendar = from_js(calendar)?;
+    let options = optional(options)?.unwrap_or_else(|| Value::Object(Default::default()));
+    let request: ZiWeiRequest = serde_json::from_value(options).map_err(invalid)?;
+    let defaults = ZiWeiOptions::default();
+    let options = ZiWeiOptions {
+        solar_time: request.solar_time,
+        zi_hour: request.zi_hour.as_deref().unwrap_or(defaults.zi_hour),
+        sex: request.sex.as_deref(),
+        leap_month: request.leap_month.as_deref().unwrap_or(defaults.leap_month),
+    };
+    let birth = UtcInstant::parse(birth).map_err(invalid)?;
+    to_js(
+        &core_zi_wei(&calendar, birth, longitude, utc_offset_minutes, &options)
             .map_err(engine_error)?,
     )
 }

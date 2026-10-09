@@ -43,7 +43,8 @@ and iOS.
    election.rs ─── electional score of a moment; search over a span (interpolated between
                    hourly exact positions, sunrises found once for the span)
    chinese/ ────── calendar.rs: solar terms, new moons, lunar and leap months, equation of
-                   time (on request with a chart); bazi.rs: the Four Pillars (no kernel)
+                   time (on request with a chart); bazi.rs: the Four Pillars; ziwei.rs: Zi Wei
+                   Dou Shu (both kernel-free)
 ```
 
 Supporting modules:

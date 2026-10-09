@@ -1,5 +1,5 @@
-//! Chinese astrology: the calendar of a moment ([`calendar`]) and the Four Pillars
-//! ([`bazi`]) cast from it.
+//! Chinese astrology: the calendar of a moment ([`calendar`]), and the Four Pillars
+//! ([`bazi`]) and the Purple Star chart ([`ziwei`]) cast from it.
 //!
 //! Not part of the reference implementation. Results carry stable codes only (pinyin
 //! for stems, branches and solar terms, English for elements, animals, Ten Gods, NaYin
@@ -7,6 +7,7 @@
 
 pub(crate) mod bazi;
 pub(crate) mod calendar;
+pub(crate) mod ziwei;
 
 /// The ten Heavenly Stems, 甲 to 癸.
 pub(crate) const STEMS: [&str; 10] = [

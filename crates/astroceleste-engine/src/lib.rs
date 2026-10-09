@@ -41,6 +41,7 @@
 //! | [`time_lords`] | the annual [`Profection`]s and [`Firdaria`] of a nativity over a span of time (no kernel needed) |
 //! | [`chinese_calendar`] | the [`ChineseCalendar`] around a moment: solar terms, lunar months, equation of time (also on a chart, with [`ChartRequest::chinese_calendar`]) |
 //! | [`bazi`] | the Four Pillars ([`Bazi`]) of a birth from its Chinese calendar: hidden stems, Ten Gods, NaYin, element balance, luck pillars (no kernel needed) |
+//! | [`zi_wei`] | the Zi Wei Dou Shu chart ([`ZiWei`]) of a birth from its Chinese calendar: palaces, bureau, the 14 major and 14 auxiliary stars with brightness, the Four Transformations, decade and small limits (no kernel needed) |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
 //! Astroceleste API, with the same key order and the same integer vs float types. The
@@ -152,6 +153,9 @@ pub use chinese::bazi::{
     TermMoment,
 };
 pub use chinese::calendar::{chinese_calendar, ChineseCalendar, LunarMonth, SolarTerm};
+pub use chinese::ziwei::{
+    zi_wei, AgeRange, Bureau, ZiWei, ZiWeiOptions, ZiWeiPalace, ZiWeiStar, ZiWeiTransformation,
+};
 pub use degree_qualities::{degree_qualities, degree_quality_table, DegreeQualities};
 pub use derived::{
     calculate_derived_chart, calculate_synastry, calculate_transit_chart, Synastry, TransitChart,

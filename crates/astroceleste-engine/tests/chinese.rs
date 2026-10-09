@@ -1,11 +1,12 @@
-//! The Chinese calendar and Ba Zi, checked against published dates (Hong Kong
+//! The Chinese calendar, Ba Zi and Zi Wei Dou Shu, checked against published dates (Hong Kong
 //! Observatory, Purple Mountain Observatory almanacs) and well-known charts.
 
 mod common;
 
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
-    bazi, calculate_chart, chinese_calendar, BaziOptions, ChartRequest, ChineseCalendar, UtcInstant,
+    bazi, calculate_chart, chinese_calendar, zi_wei, BaziOptions, ChartRequest, ChineseCalendar,
+    UtcInstant, ZiWei, ZiWeiOptions, ZiWeiPalace,
 };
 use common::{kernels, root};
 
@@ -396,4 +397,175 @@ fn bad_options_are_rejected() {
         &BaziOptions::default()
     )
     .is_err());
+}
+
+fn zi_wei_chart(
+    kernels: &KernelSet,
+    utc: &str,
+    longitude: f64,
+    offset: f64,
+    options: &ZiWeiOptions,
+) -> ZiWei {
+    let cal = calendar(kernels, utc);
+    zi_wei(&cal, at(utc), longitude, offset, options).unwrap()
+}
+
+fn palace_at<'a>(chart: &'a ZiWei, branch: &str) -> &'a ZiWeiPalace {
+    chart.palaces.iter().find(|p| p.branch == branch).unwrap()
+}
+
+#[test]
+fn zi_wei_chart_matches_iztro() {
+    let Some(kernels) = kernels() else { return };
+    // Bruce Lee: lunar 1940 (庚辰) month 10 day 28, 辰 hour. The values below are those
+    // the iztro library (MIT) gives for the same birth.
+    let options = ZiWeiOptions {
+        solar_time: false,
+        sex: Some("male"),
+        ..ZiWeiOptions::default()
+    };
+    let chart = zi_wei_chart(&kernels, "1940-11-27T15:12:00Z", -122.42, -480.0, &options);
+    assert_eq!(
+        (chart.month, chart.lunar_date.day, chart.hour_branch),
+        (10, 28, "chen")
+    );
+    assert_eq!((chart.life_palace, chart.body_palace), ("wei", "mao"));
+    assert_eq!((chart.bureau.element, chart.bureau.number), ("wood", 3));
+    assert_eq!(
+        (chart.life_master, chart.body_master),
+        ("wu_qu", "wen_chang")
+    );
+    assert_eq!(chart.palaces[0].name, "life");
+    assert_eq!(chart.palaces[0].branch, "wei");
+    let yin = palace_at(&chart, "yin");
+    assert_eq!((yin.name, yin.stem), ("health", "wu"));
+    let stars: Vec<_> = yin.stars.iter().map(|s| (s.star, s.brightness)).collect();
+    assert_eq!(stars, [("tian_ma", None), ("ling_xing", Some("miao"))]);
+    let decade = yin.decade.as_ref().unwrap();
+    assert_eq!((decade.start, decade.end), (73, 82));
+    assert_eq!(
+        yin.small_limit_ages,
+        [5, 17, 29, 41, 53, 65, 77, 89, 101, 113]
+    );
+    assert!(palace_at(&chart, "mao").is_body);
+    assert_eq!(chart.decade_direction, Some("forward"));
+    // 庚 year: 太陽 祿, 武曲 權, 太陰 科, 天同 忌.
+    let kinds: Vec<_> = chart
+        .transformations
+        .iter()
+        .map(|t| (t.kind, t.star))
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            ("lu", "tai_yang"),
+            ("quan", "wu_qu"),
+            ("ke", "tai_yin"),
+            ("ji", "tian_tong")
+        ]
+    );
+}
+
+#[test]
+fn zi_wei_charts_are_well_formed() {
+    let Some(kernels) = kernels() else { return };
+    let options = ZiWeiOptions {
+        sex: Some("female"),
+        ..ZiWeiOptions::default()
+    };
+    // A birth every 37 days and 5 hours over thirty years.
+    let mut moment = at("1970-01-03T01:30:00Z");
+    for _ in 0..300 {
+        let utc = moment.isoformat();
+        let chart = zi_wei_chart(&kernels, &utc, 12.5, 60.0, &options);
+        let where_is = |star: &str| {
+            let palaces: Vec<_> = chart
+                .palaces
+                .iter()
+                .filter(|p| p.stars.iter().any(|s| s.star == star))
+                .collect();
+            assert_eq!(palaces.len(), 1, "{star} at {utc}");
+            branch_index(palaces[0].branch)
+        };
+        let all: usize = chart.palaces.iter().map(|p| p.stars.len()).sum();
+        assert_eq!(all, 28, "{utc}");
+        let majors: usize = chart
+            .palaces
+            .iter()
+            .map(|p| p.stars.iter().filter(|s| s.kind == "major").count())
+            .sum();
+        assert_eq!(majors, 14);
+        // Tian Fu mirrors Zi Wei across 寅-申; Qi Sha faces Tian Fu; the lambs flank Lu Cun.
+        assert_eq!((where_is("zi_wei") + where_is("tian_fu")) % 12, 4, "{utc}");
+        assert_eq!((where_is("tian_fu") + 6) % 12, where_is("qi_sha"));
+        assert_eq!((where_is("lu_cun") + 1) % 12, where_is("qing_yang"));
+        assert_eq!((where_is("lu_cun") + 11) % 12, where_is("tuo_luo"));
+        let mut branches: Vec<_> = chart.palaces.iter().map(|p| p.branch).collect();
+        branches.sort_unstable();
+        branches.dedup();
+        assert_eq!(branches.len(), 12);
+        assert_eq!(chart.transformations.len(), 4);
+        let mut ages: Vec<u8> = chart
+            .palaces
+            .iter()
+            .flat_map(|p| p.small_limit_ages.clone())
+            .collect();
+        ages.sort_unstable();
+        assert_eq!(ages, (1..=120).collect::<Vec<u8>>());
+        let mut starts: Vec<u8> = chart
+            .palaces
+            .iter()
+            .map(|p| p.decade.as_ref().unwrap().start)
+            .collect();
+        starts.sort_unstable();
+        let first = chart.bureau.number;
+        assert_eq!(starts, (0..12).map(|k| first + 10 * k).collect::<Vec<u8>>());
+        moment = moment.plus_days(37.0 + 5.0 / 24.0);
+    }
+}
+
+fn branch_index(code: &str) -> usize {
+    [
+        "zi", "chou", "yin", "mao", "chen", "si", "wu", "wei", "shen", "you", "xu", "hai",
+    ]
+    .iter()
+    .position(|b| *b == code)
+    .unwrap()
+}
+
+#[test]
+fn zi_wei_leap_months_and_options() {
+    let Some(kernels) = kernels() else { return };
+    // 2023-04-10 is the 20th of the leap second month.
+    let utc = "2023-04-10T04:00:00Z";
+    let split = zi_wei_chart(&kernels, utc, 116.4, 480.0, &ZiWeiOptions::default());
+    assert!(split.lunar_date.leap);
+    assert_eq!(
+        (split.lunar_date.month, split.lunar_date.day, split.month),
+        (2, 20, 3)
+    );
+    let same = ZiWeiOptions {
+        leap_month: "same",
+        ..ZiWeiOptions::default()
+    };
+    assert_eq!(zi_wei_chart(&kernels, utc, 116.4, 480.0, &same).month, 2);
+    // Without the sex there are no limits.
+    assert!(split.decade_direction.is_none());
+    assert!(split
+        .palaces
+        .iter()
+        .all(|p| p.decade.is_none() && p.small_limit_ages.is_empty()));
+    let cal = calendar(&kernels, utc);
+    for bad in [
+        ZiWeiOptions {
+            leap_month: "never",
+            ..ZiWeiOptions::default()
+        },
+        ZiWeiOptions {
+            sex: Some("x"),
+            ..ZiWeiOptions::default()
+        },
+    ] {
+        assert!(zi_wei(&cal, at(utc), 116.4, 480.0, &bad).is_err());
+    }
 }

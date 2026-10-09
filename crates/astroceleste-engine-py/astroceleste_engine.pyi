@@ -119,3 +119,14 @@ def bazi(
     luck_pillars: int = 10,
 ) -> dict[str, Any]:
     """The Four Pillars of a birth from its Chinese calendar (a chart's chinese_calendar)."""
+def zi_wei(
+    calendar: dict[str, Any],
+    moment: Moment,
+    longitude: float,
+    utc_offset_minutes: float,
+    solar_time: bool = True,
+    zi_hour: str = "next_day",
+    sex: str | None = None,
+    leap_month: str = "split",
+) -> dict[str, Any]:
+    """The Zi Wei Dou Shu chart of a birth from its Chinese calendar (a chart's chinese_calendar)."""

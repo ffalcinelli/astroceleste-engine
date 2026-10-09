@@ -1,6 +1,6 @@
 # Chinese astrology
 
-The engine computes the Chinese calendar of a moment, and casts the Four Pillars (Ba Zi, 八字) from it. Results carry stable codes only:
+The engine computes the Chinese calendar of a moment. From it, it casts the Four Pillars (Ba Zi, 八字) and the Purple Star chart (Zi Wei Dou Shu, 紫微斗數). Results carry stable codes only:
 - pinyin for stems, branches and solar terms;
 - English for elements, animals, Ten Gods, NaYin and life stages.
 
@@ -12,8 +12,9 @@ The work is split by what needs the ephemeris:
 |---|---|---|
 | The calendar: solar terms, lunar months, equation of time | yes | `chinese_calendar`, or `chinese_calendar: true` on a chart request (the chart's `chinese_calendar` key) |
 | The Four Pillars | no | `bazi` (Python `bazi`, JavaScript `bazi`) |
+| The Purple Star chart | no | `zi_wei` (Python `zi_wei`, JavaScript `ziWei`) |
 
-An app can therefore store the calendar with a chart, and re-cast the pillars offline whenever the native's sex or a convention changes.
+An app can therefore store the calendar with a chart, and re-cast both charts offline whenever the native's sex or a convention changes.
 
 ## The calendar
 
@@ -114,3 +115,67 @@ The tables are these:
   - **Direction:** forward from the month pillar for a yang year and a man, or a yin year and a woman; backward otherwise.
   - **Start:** after the days from the birth to the next jie term (forward) or from the previous one (backward), three days to a year.
   - **Length:** each lasts ten tropical years.
+
+## Zi Wei Dou Shu
+
+```python
+chart = ace.zi_wei(calendar, "1940-11-27T15:12:00Z", -122.42, -480, sex="male")
+chart["life_palace"], chart["bureau"]    # ("wei", {"element": "wood", "number": 3})
+```
+
+```js
+const chart = ziWei(calendar, "1940-11-27T15:12:00Z", -122.42, -480, { sex: "male" });
+```
+
+The arguments are those of `bazi`. The options are `solar_time`, `zi_hour` and `sex`, as for the pillars, plus one more:
+
+| Option | Meaning | Default |
+|---|---|---|
+| `leap_month` | `split`: a birth after the 15th of a leap month counts in the next month; `same`: every day of a leap month counts in the month it repeats | `split` |
+
+The chart follows the classic rules of the *Zi Wei Dou Shu Quanshu*.
+
+- **Date and hour:** the year is the lunar year, which changes at the New Year (not at 立春). The month and day are the lunar ones. The hour is the birth hour's branch, on the same clock and with the same Zi-hour convention as the pillars.
+- **Palaces:**
+  - The life palace (命宮) is counted from 寅 forward to the month, then back to the hour.
+  - The body palace (身宮) is counted forward to the hour.
+  - The twelve palaces run backward through the branches from the life palace: `life`, `siblings`, `spouse`, `children`, `wealth`, `health`, `travel`, `friends`, `career`, `property`, `fortune`, `parents`.
+  - Their stems follow from the year stem (五虎遁).
+- **Bureau (五行局):** the NaYin element of the life palace's stem and branch. Water is 2, wood 3, metal 4, earth 5, fire 6.
+- **The fourteen major stars:**
+  - Zi Wei is placed from the bureau and the lunar day.
+  - Its group follows it backward: 天機 −1, 太陽 −3, 武曲 −4, 天同 −5, 廉貞 −8.
+  - Tian Fu mirrors Zi Wei across the 寅–申 axis. Its group follows it forward: 太陰 +1, 貪狼 +2, 巨門 +3, 天相 +4, 天梁 +5, 七殺 +6, 破軍 +10.
+- **Auxiliary stars:**
+  - by the month: 左輔 (from 辰, forward) and 右弼 (from 戌, backward);
+  - by the hour: 文昌 (from 戌, backward) and 文曲 (from 辰, forward);
+  - by the year stem: 天魁 and 天鉞 (甲戊庚 丑未, 乙己 子申, 丙丁 亥酉, 辛 午寅, 壬癸 卯巳) and 祿存;
+  - by the year branch: 天馬.
+- **Malefic stars:**
+  - 擎羊 and 陀羅, either side of 祿存;
+  - 火星 and 鈴星, from the year branch's starting point, forward by the hour;
+  - 地空 and 地劫, from 亥 by the hour (backward and forward).
+- **Brightness** (`miao` 廟, `wang` 旺, `de` 得, `li` 利, `ping` 平, `bu` 不, `xian` 陷): given for the major stars, 文昌, 文曲, 火星, 鈴星, 擎羊 and 陀羅. It follows the common table, as published by the [iztro](https://github.com/SylarLong/iztro) project (MIT, see NOTICE).
+- **The Four Transformations (四化)** are those of the year stem, in the order 祿, 權, 科, 忌. Where schools differ:
+  - 庚 gives 太陽, 武曲, 太陰, 天同;
+  - 壬 gives 天梁, 紫微, 左輔, 武曲.
+- **Life and body masters (命主, 身主):** by the life palace's branch and by the year branch.
+- **Decade limits (大限):** given the native's sex.
+  - They start in the life palace at the bureau's number of years (nominal age, 虛歲) and last ten years each.
+  - They run forward through the branches for a yang year and a man or a yin year and a woman, backward otherwise.
+- **Small limits (小限):** each palace lists the nominal ages up to 120 whose limit falls there. They start from 辰, 戌, 未 or 丑 (for 寅午戌, 申子辰, 巳酉丑 and 亥卯未 years), forward for a man and backward for a woman.
+
+The result carries:
+- `lunar_date`;
+- `month`: the month the chart is cast with;
+- `hour_branch`;
+- `life_palace` and `body_palace` (branches);
+- `bureau`;
+- `life_master` and `body_master`;
+- `palaces`: from the life palace, each with `name`, `branch`, `stem`, `is_body`, `stars` (`star`, `kind`, `brightness`, `transformation`), `decade` and `small_limit_ages`;
+- `transformations` (`kind`, `star`, `palace`);
+- `decade_direction`.
+
+The tests check:
+- a published chart against the values iztro gives for it;
+- the geometry of 300 charts: every star once, Tian Fu mirroring Zi Wei, Qi Sha opposite Tian Fu, the lambs either side of Lu Cun, and ages 1–120 each in exactly one small limit.

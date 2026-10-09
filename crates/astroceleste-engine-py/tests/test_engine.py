@@ -235,3 +235,19 @@ def test_chinese_calendar_and_bazi():
     with pytest.raises(ValueError):
         ace.bazi(calendar, birth, -122.42, -480, zi_hour="noon")
     json.dumps(pillars)
+
+
+@needs_full_kernel
+def test_zi_wei():
+    engine = ace.Engine([FULL])
+    birth = "1940-11-27T15:12:00Z"
+    calendar = engine.chart(birth, 37.77, -122.42, chinese_calendar=True)["chinese_calendar"]
+    chart = ace.zi_wei(calendar, birth, -122.42, -480, solar_time=False, sex="male")
+    assert (chart["life_palace"], chart["body_palace"]) == ("wei", "mao")
+    assert chart["bureau"] == {"element": "wood", "number": 3}
+    assert len(chart["palaces"]) == 12
+    assert sum(len(p["stars"]) for p in chart["palaces"]) == 28
+    assert ace.zi_wei(calendar, birth, -122.42, -480)["decade_direction"] is None
+    with pytest.raises(ValueError):
+        ace.zi_wei(calendar, birth, -122.42, -480, leap_month="never")
+    json.dumps(chart)

@@ -84,6 +84,11 @@ const NAYIN: [&str; 30] = [
     "ocean_water",
 ];
 
+/// The NaYin code of a pair of the sexagenary cycle (0-29).
+pub(crate) fn nayin(pair: usize) -> &'static str {
+    NAYIN[pair]
+}
+
 /// The twelve stages of life (十二長生), from Birth.
 const LIFE_STAGES: [&str; 12] = [
     "birth",

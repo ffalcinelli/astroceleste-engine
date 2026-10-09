@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
 const require = createRequire(import.meta.url);
-const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable, timeLords, chartDignities, bazi } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
+const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable, timeLords, chartDignities, bazi, ziWei } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
 
 const PRIVATE = new Set(["degree_symbol", "degree_symbols", "condition"]);
 // Chart keys added after the reference implementation, absent from the fixtures.
@@ -127,5 +127,10 @@ assert.strictEqual(lords.firdaria[0].lord, "Saturn");
   assert.strictEqual(bazi(calendar, birth, -122.42, -480).luck, null);
   assert.strictEqual(bazi(calendar, birth, -122.42, -480, { solar_time: false }).time_basis, "civil");
   assert.throws(() => bazi(calendar, birth, -122.42, -480, { zi_hour: "noon" }), (e) => e.code === "invalid_input");
+  const purple = ziWei(calendar, birth, -122.42, -480, { solar_time: false, sex: "male" });
+  assert.deepStrictEqual([purple.life_palace, purple.body_palace, purple.bureau.number], ["wei", "mao", 3]);
+  assert.strictEqual(purple.palaces.reduce((n, p) => n + p.stars.length, 0), 28);
+  assert.strictEqual(ziWei(calendar, birth, -122.42, -480).decade_direction, null);
+  assert.throws(() => ziWei(calendar, birth, -122.42, -480, { leap_month: "never" }), (e) => e.code === "invalid_input");
 }
 console.log(`golden checks: ${count} charts ok`);

@@ -12,8 +12,8 @@ use astroceleste_engine::{
     calculate_horary_chart, calculate_synastry, calculate_transit_chart,
     chart_dignities as core_chart_dignities, degree_qualities as core_degree_qualities,
     degree_quality_table as core_degree_quality_table, search_elections,
-    time_lords as core_time_lords, BaziOptions, ChartRequest, ChineseCalendar, ElectionCriteria,
-    EngineError as CoreError, UtcInstant,
+    time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions, ChartRequest,
+    ChineseCalendar, ElectionCriteria, EngineError as CoreError, UtcInstant, ZiWeiOptions,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
@@ -500,6 +500,42 @@ fn bazi(
     to_py(py, &pillars)
 }
 
+/// The Zi Wei Dou Shu chart of a birth at `moment`, at `longitude` (degrees east) where
+/// civil time was `utc_offset_minutes` ahead of UTC, from its Chinese `calendar` (the
+/// chart's `chinese_calendar`). No kernel is needed.
+#[pyfunction]
+#[pyo3(signature = (calendar, moment, longitude, utc_offset_minutes, solar_time=true, zi_hour="next_day", sex=None, leap_month="split"))]
+#[allow(clippy::too_many_arguments)]
+fn zi_wei(
+    py: Python<'_>,
+    calendar: &Bound<'_, PyAny>,
+    moment: &Bound<'_, PyAny>,
+    longitude: f64,
+    utc_offset_minutes: f64,
+    solar_time: bool,
+    zi_hour: &str,
+    sex: Option<&str>,
+    leap_month: &str,
+) -> PyResult<Py<PyAny>> {
+    let calendar: ChineseCalendar = serde_json::from_value(to_value(calendar)?)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let options = ZiWeiOptions {
+        solar_time,
+        zi_hour,
+        sex,
+        leap_month,
+    };
+    let chart = core_zi_wei(
+        &calendar,
+        to_instant(moment)?,
+        longitude,
+        utc_offset_minutes,
+        &options,
+    )
+    .map_err(to_py_err)?;
+    to_py(py, &chart)
+}
+
 #[pymodule(name = "astroceleste_engine")]
 fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -512,6 +548,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(time_lords, m)?)?;
     m.add_function(wrap_pyfunction!(chart_dignities, m)?)?;
     m.add_function(wrap_pyfunction!(bazi, m)?)?;
+    m.add_function(wrap_pyfunction!(zi_wei, m)?)?;
     m.add("EngineError", m.py().get_type::<EngineError>())?;
     m.add(
         "EphemerisRangeError",
