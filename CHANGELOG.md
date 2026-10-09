@@ -8,6 +8,14 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.12]
+
+### Added
+
+- Ba Zi: the `date` option gives the year, month and day pillars of a date (`flow`: 流年,
+  流月, 流日, with the jie that opened the month), from an embedded table of the jie terms of
+  1900-2100 (no kernel needed).
+
 ## [0.0.11]
 
 ### Added
