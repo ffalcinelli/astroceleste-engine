@@ -8,6 +8,19 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.8]
+
+### Added
+
+- Chinese calendar: `ChartRequest::chinese_calendar` (`chinese_calendar` in Python and
+  JavaScript) adds a `chinese_calendar` key to a chart: the solar terms from the last 立春
+  to the next jie term, the lunar months around the date (leap months by the modern rule,
+  including the 2033 case) and the equation of time. Also `chinese_calendar(kernels, instant)`.
+- Ba Zi: `bazi(calendar, birth, longitude, utc_offset_minutes, options)` (no kernel needed;
+  Python and JavaScript `bazi`) casts the Four Pillars on true solar or civil time, with
+  either Zi-hour convention: hidden stems, Ten Gods, NaYin, life stages, element balance,
+  the lunar date and, given the native's sex, the luck pillars. See `docs/chinese.md`.
+
 ## [0.0.7]
 
 ### Added
