@@ -303,7 +303,7 @@ fn yes() -> bool {
     true
 }
 
-/// `{ solar_time?, zi_hour?, sex?, luck_pillars?, year? }`
+/// `{ solar_time?, zi_hour?, sex?, luck_pillars?, year?, date? }`
 #[derive(Deserialize)]
 struct BaziRequest {
     #[serde(default = "yes")]
@@ -316,11 +316,13 @@ struct BaziRequest {
     luck_pillars: Option<u8>,
     #[serde(default)]
     year: Option<i32>,
+    #[serde(default)]
+    date: Option<String>,
 }
 
 /// The Four Pillars of a birth (ISO 8601 UTC) at `longitude` (degrees east) where civil
 /// time was `utcOffsetMinutes` ahead of UTC, from its Chinese `calendar` (the chart's
-/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, luck_pillars?, year? }`, or
+/// `chinese_calendar`). `options`: `{ solar_time?, zi_hour?, sex?, luck_pillars?, year?, date? }`, or
 /// `undefined` for the defaults. No kernel is needed.
 #[wasm_bindgen]
 pub fn bazi(
@@ -340,6 +342,7 @@ pub fn bazi(
         sex: request.sex.as_deref(),
         luck_pillars: request.luck_pillars.unwrap_or(defaults.luck_pillars),
         year: request.year,
+        date: request.date.as_deref(),
     };
     let birth = UtcInstant::parse(birth).map_err(invalid)?;
     to_js(

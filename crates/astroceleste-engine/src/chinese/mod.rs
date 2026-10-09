@@ -7,6 +7,7 @@
 
 pub(crate) mod bazi;
 pub(crate) mod calendar;
+pub(crate) mod jie_table;
 pub(crate) mod lunar_table;
 pub(crate) mod ziwei;
 

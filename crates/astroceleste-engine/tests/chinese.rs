@@ -676,3 +676,46 @@ fn bazi_annual_pillar() {
             .is_none()
     );
 }
+
+#[test]
+fn bazi_flow_pillars() {
+    let Some(kernels) = kernels() else { return };
+    let utc = "1940-11-27T15:12:00Z";
+    let cal = calendar(&kernels, utc);
+    let read = |date| {
+        let options = BaziOptions {
+            date: Some(date),
+            ..BaziOptions::default()
+        };
+        bazi(&cal, at(utc), -122.42, -480.0, &options)
+            .unwrap()
+            .flow
+            .unwrap()
+    };
+    let name = |p: &astroceleste_engine::Pillar| format!("{} {}", p.stem, p.branch);
+    // 2026-03-15: a 丙午 year, after 驚蟄 (5 March): the 辛卯 month.
+    let flow = read("2026-03-15");
+    assert_eq!(name(&flow.year), "bing wu");
+    assert_eq!(name(&flow.month), "xin mao");
+    assert_eq!(flow.month_term.name, "jingzhe");
+    assert_eq!(flow.month.ten_god, Some("direct_officer")); // 辛 to a 甲 Day Master
+                                                            // The day pillar counts on from 2000-01-01 (戊午).
+    assert_eq!(name(&read("2000-01-01").day), "wu wu");
+    assert_eq!(name(&read("1949-10-01").day), "jia zi");
+    // Before 立春 the year is still the old one; early January is the 子 month of 大雪.
+    let january = read("2026-01-02");
+    assert_eq!(name(&january.year), "yi si");
+    assert_eq!(january.month.branch, "zi");
+    assert_eq!(read("2026-01-10").month.branch, "chou");
+    // Outside the table, or not a date.
+    for bad in ["1899-06-01", "15/03/2026"] {
+        let options = BaziOptions {
+            date: Some(bad),
+            ..BaziOptions::default()
+        };
+        assert!(
+            bazi(&cal, at(utc), -122.42, -480.0, &options).is_err(),
+            "{bad}"
+        );
+    }
+}

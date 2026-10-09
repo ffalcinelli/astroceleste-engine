@@ -10,10 +10,14 @@
 //! - The luck pillars (大運) run forward from the month pillar for a yang year and a man
 //!   or a yin year and a woman, backward otherwise. They start after the days from the
 //!   birth to the next (forward) or previous (backward) jie term, three days to a year.
+//! - Given a date, the year, month and day pillars of that date (流年, 流月, 流日), read at
+//!   noon civil time with the birth's UTC offset, from an embedded table of the jie terms of
+//!   1900-2100 (no kernel).
 
 use serde::Serialize;
 
 use super::calendar::{day_number, ChineseCalendar, SolarTerm, LICHUN};
+use super::jie_table::jie_before;
 use super::{
     branch_element, cycle_index, polarity, stem_element, year_cycle_index, ANIMALS, BRANCHES,
     ELEMENTS, STEMS,
@@ -143,6 +147,9 @@ pub struct BaziOptions<'a> {
     pub luck_pillars: u8,
     /// A year whose pillar (流年, changing at 立春) to give, seen from the Day Master.
     pub year: Option<i32>,
+    /// A date, `YYYY-MM-DD`, whose year, month and day pillars (流年, 流月, 流日) to give,
+    /// read at noon civil time with the birth's UTC offset. Dates from 1900-01-06 to 2100.
+    pub date: Option<&'a str>,
 }
 
 impl Default for BaziOptions<'_> {
@@ -153,6 +160,7 @@ impl Default for BaziOptions<'_> {
             sex: None,
             luck_pillars: 10,
             year: None,
+            date: None,
         }
     }
 }
@@ -266,6 +274,21 @@ pub struct Luck {
     pub pillars: Vec<LuckPillar>,
 }
 
+/// The pillars of a date read against a chart.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct BaziFlow {
+    /// The date, `YYYY-MM-DD`.
+    pub date: String,
+    /// The year's pillar (流年), changing at 立春.
+    pub year: Pillar,
+    /// The month's pillar (流月), changing at each jie term.
+    pub month: Pillar,
+    /// The day's pillar (流日).
+    pub day: Pillar,
+    /// The jie term that opened the month.
+    pub month_term: TermMoment,
+}
+
 /// The Four Pillars of a birth.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Bazi {
@@ -301,6 +324,8 @@ pub struct Bazi {
     pub luck: Option<Luck>,
     /// The pillar of the requested year (流年), seen from the Day Master.
     pub annual: Option<Pillar>,
+    /// The pillars of the requested date, seen from the Day Master.
+    pub flow: Option<BaziFlow>,
 }
 
 fn invalid(message: &str) -> EngineError {
@@ -397,6 +422,51 @@ fn term_moment((instant, term): &Dated) -> TermMoment {
         name: term.name.clone(),
         utc: instant.isoformat(),
     }
+}
+
+/// The jie terms in table order, from 小寒.
+const JIE_NAMES: [&str; 12] = [
+    "xiaohan",
+    "lichun",
+    "jingzhe",
+    "qingming",
+    "lixia",
+    "mangzhong",
+    "xiaoshu",
+    "liqiu",
+    "bailu",
+    "hanlu",
+    "lidong",
+    "daxue",
+];
+
+/// The year, month and day pillars of `date` read at noon with `utc_offset_minutes`.
+fn flow_of(date: &str, utc_offset_minutes: f64, master: usize) -> Result<BaziFlow, EngineError> {
+    // Noon on the date, as a wall clock and as the moment it is at the birth's UTC offset.
+    let local_noon = UtcInstant::parse(&format!("{date}T12:00:00Z"))
+        .map_err(|_| invalid("date must be YYYY-MM-DD"))?;
+    let noon = local_noon.add_micros(-(utc_offset_minutes * MICROS_PER_MINUTE).round() as i64);
+    let (index, year, at) =
+        jie_before(noon).ok_or_else(|| invalid("date is outside the years 1900-2100"))?;
+    // 小寒 (index 0) still belongs to the year before 立春.
+    let year_cycle = year_cycle_index(if index == 0 { year - 1 } else { year });
+    let month_offset = (index + 11) % 12;
+    let month_stem = ((year_cycle % 10) % 5 * 2 + 2 + month_offset) % 10;
+    let day_cycle = (day_number(local_noon) - 11).rem_euclid(60) as usize;
+    Ok(BaziFlow {
+        date: date.to_string(),
+        year: pillar(year_cycle, master, false),
+        month: pillar(
+            cycle_index(month_stem, (2 + month_offset) % 12),
+            master,
+            false,
+        ),
+        day: pillar(day_cycle, master, false),
+        month_term: TermMoment {
+            name: JIE_NAMES[index].to_string(),
+            utc: at.isoformat(),
+        },
+    })
 }
 
 fn lunar_date(calendar: &ChineseCalendar, day: i64) -> Result<Option<LunarDate>, EngineError> {
@@ -528,5 +598,9 @@ pub fn bazi(
         annual: options
             .year
             .map(|year| pillar(year_cycle_index(year), master, false)),
+        flow: options
+            .date
+            .map(|date| flow_of(date, utc_offset_minutes, master))
+            .transpose()?,
     })
 }

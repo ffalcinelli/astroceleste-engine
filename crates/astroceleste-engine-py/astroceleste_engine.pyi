@@ -118,6 +118,7 @@ def bazi(
     sex: str | None = None,
     luck_pillars: int = 10,
     year: int | None = None,
+    date: str | None = None,
 ) -> dict[str, Any]:
     """The Four Pillars of a birth from its Chinese calendar (a chart's chinese_calendar)."""
 def zi_wei(

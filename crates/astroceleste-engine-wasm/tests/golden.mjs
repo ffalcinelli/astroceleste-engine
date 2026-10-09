@@ -135,6 +135,7 @@ assert.strictEqual(lords.firdaria[0].lord, "Saturn");
   assert.ok(ziWei(calendar, birth, -122.42, -480, { date: "2026-03-15" }).horoscope.daily);
   assert.throws(() => ziWei(calendar, birth, -122.42, -480, { date: "1800-01-01" }), (e) => e.code === "invalid_input");
   assert.strictEqual(bazi(calendar, birth, -122.42, -480, { year: 2026 }).annual.stem, "bing");
+  assert.strictEqual(bazi(calendar, birth, -122.42, -480, { date: "2026-03-15" }).flow.month.branch, "mao");
   assert.throws(() => ziWei(calendar, birth, -122.42, -480, { leap_month: "never" }), (e) => e.code === "invalid_input");
 }
 console.log(`golden checks: ${count} charts ok`);

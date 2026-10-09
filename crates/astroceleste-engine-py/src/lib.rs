@@ -468,7 +468,7 @@ fn chart_dignities(
 /// was `utc_offset_minutes` ahead of UTC, from its Chinese `calendar` (the chart's
 /// `chinese_calendar`). No kernel is needed.
 #[pyfunction]
-#[pyo3(signature = (calendar, moment, longitude, utc_offset_minutes, solar_time=true, zi_hour="next_day", sex=None, luck_pillars=10, year=None))]
+#[pyo3(signature = (calendar, moment, longitude, utc_offset_minutes, solar_time=true, zi_hour="next_day", sex=None, luck_pillars=10, year=None, date=None))]
 #[allow(clippy::too_many_arguments)]
 fn bazi(
     py: Python<'_>,
@@ -481,6 +481,7 @@ fn bazi(
     sex: Option<&str>,
     luck_pillars: u8,
     year: Option<i32>,
+    date: Option<&str>,
 ) -> PyResult<Py<PyAny>> {
     let calendar: ChineseCalendar = serde_json::from_value(to_value(calendar)?)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -490,6 +491,7 @@ fn bazi(
         sex,
         luck_pillars,
         year,
+        date,
     };
     let pillars = core_bazi(
         &calendar,

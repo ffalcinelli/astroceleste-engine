@@ -74,8 +74,9 @@ Core pipeline (`crates/astroceleste-engine/src`):
   is set) and the kernel-free Ba Zi and Zi Wei Dou Shu (`ziwei.rs`, brightness table from iztro,
   see NOTICE); `tests/chinese.rs` checks it against published dates, `tests/ziwei_iztro.rs`
   against charts from iztro (fixtures from `scripts/make_ziwei_*fixtures.cjs`, run with iztro
-  installed in a scratch directory), and `chinese/lunar_table.rs` embeds the lunar years
-  1900-2100 (regenerate with its ignored `print_table` test).
+  installed in a scratch directory), and `chinese/lunar_table.rs` and `chinese/jie_table.rs`
+  embed the lunar years and the jie terms of 1900-2100 (regenerate each with its ignored
+  `print_table` test).
 - `catalog/` — static tables (fixed stars, lunar mansions, derived-house meanings), generated
   code excluded from rustfmt/clippy.
 

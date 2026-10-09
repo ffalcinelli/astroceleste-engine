@@ -456,3 +456,17 @@ pub(crate) fn lunar_years(
         })
         .collect())
 }
+
+/// The moments (UT Julian dates) of the 12 jie of a Gregorian year, from 小寒 (285°) to
+/// 大雪 (255°), from the ephemeris (for the embedded table and its test).
+#[cfg(test)]
+pub(crate) fn jie_of_year(kernels: &KernelSet, year: i32) -> Result<[f64; 12], EngineError> {
+    let sky = Sky { kernels };
+    let january = UtcInstant::from_civil(year, 1, 6, 0, 0, 0, 0).julian_day();
+    let mut moments = [0.0; 12];
+    for (i, moment) in moments.iter_mut().enumerate() {
+        let longitude = f64::from((285 + 30 * i as u32) % 360);
+        *moment = sky.sun_at(longitude, january + 30.44 * i as f64)?;
+    }
+    Ok(moments)
+}

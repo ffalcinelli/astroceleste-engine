@@ -254,6 +254,8 @@ def test_zi_wei():
     daily = ace.zi_wei(calendar, birth, -122.42, -480, sex="male", date="2026-03-15")["horoscope"]
     assert daily["lunar_date"]["month"] == 1 and daily["daily"] is not None
     assert ace.bazi(calendar, birth, -122.42, -480, year=2026)["annual"]["stem"] == "bing"
+    flow = ace.bazi(calendar, birth, -122.42, -480, date="2026-03-15")["flow"]
+    assert (flow["month"]["stem"], flow["month"]["branch"]) == ("xin", "mao")
     with pytest.raises(ValueError):
         ace.zi_wei(calendar, birth, -122.42, -480, leap_month="never")
     json.dumps(chart)

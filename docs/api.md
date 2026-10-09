@@ -246,7 +246,7 @@ Years are tropical years from the moment of birth. `diurnal` says which sequence
 
 ## Chinese astrology
 
-A chart requested with `chinese_calendar` carries the Chinese calendar of its moment: the solar terms, the lunar months and the equation of time. `bazi(calendar, birth, longitude, utc_offset_minutes, …)` (no kernel needed) casts the Four Pillars from it, with the hidden stems, Ten Gods, NaYin, element balance and luck pillars. `zi_wei(…)` (JavaScript `ziWei`, no kernel needed either) casts the Zi Wei Dou Shu chart: the twelve palaces, the five-element bureau, the fourteen major and fourteen auxiliary stars with their brightness, the 38 minor stars and the cycles of twelve gods, the Four Transformations natal and flying, the decade and small limits, and with `year` the horoscope of that year. The rules and the result are described in [Chinese astrology](chinese.md).
+A chart requested with `chinese_calendar` carries the Chinese calendar of its moment: the solar terms, the lunar months and the equation of time. `bazi(calendar, birth, longitude, utc_offset_minutes, …)` (no kernel needed) casts the Four Pillars from it, with the hidden stems, Ten Gods, NaYin, element balance and luck pillars, and with `date` the pillars of that date. `zi_wei(…)` (JavaScript `ziWei`, no kernel needed either) casts the Zi Wei Dou Shu chart: the twelve palaces, the five-element bureau, the fourteen major and fourteen auxiliary stars with their brightness, the 38 minor stars and the cycles of twelve gods, the Four Transformations natal and flying, the decade and small limits, and with `year` the horoscope of that year. The rules and the result are described in [Chinese astrology](chinese.md).
 
 ## Elections
 

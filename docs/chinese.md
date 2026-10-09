@@ -73,6 +73,14 @@ The arguments are the calendar, the moment of birth (UTC), the longitude of the 
 | `sex` | `male` or `female`: sets the direction of the luck pillars, which are left out without it | none |
 | `luck_pillars` | how many ten-year luck pillars to list | 10 |
 | `year` | a year whose pillar (流年) to give as `annual`, seen from the Day Master | none |
+| `date` | a date, `YYYY-MM-DD`, whose year, month and day pillars (流年, 流月, 流日) to give as `flow` | none |
+
+A `date` is read at noon civil time with the birth's UTC offset:
+- The year changes at 立春.
+- The month changes at each jie term, its stem following from the year's (五虎遁).
+- The day follows the sexagenary count.
+
+The jie of 1900 to 2100 are embedded, so no kernel is needed. The table is generated from the engine's own solar-term search and checked against it to the minute.
 
 ### How the pillars are cast
 
@@ -97,6 +105,7 @@ The year and month compare instants, so the clock the birth was recorded in does
 | `lunar_date` | the birth date in the lunisolar calendar, with the animal of the lunar year (the popular "Chinese sign", which changes at the New Year) |
 | `luck` | `direction`, `start_age` and the luck pillars (`start_age`, `start`, `end`, `pillar`) |
 | `annual` | the pillar of the requested `year` (it changes at 立春), with its Ten God and hidden stems |
+| `flow` | for a `date`: its `year`, `month` and `day` pillars and the jie that opened the month (`month_term`) |
 
 The tables are these:
 

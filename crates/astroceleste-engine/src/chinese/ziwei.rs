@@ -769,6 +769,7 @@ pub fn zi_wei(
             sex: None,
             luck_pillars: 0,
             year: None,
+            date: None,
         },
     )?;
     let lunar = pillars

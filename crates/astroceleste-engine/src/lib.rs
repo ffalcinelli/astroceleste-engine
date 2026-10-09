@@ -149,8 +149,8 @@ pub use aspects::{Aspect, CrossAspect};
 pub use catalog::{DegreeRun, LunarMansion, SignDegrees};
 pub use chart::{calculate_chart, Chart, ChartRequest, HouseCusp, Placement};
 pub use chinese::bazi::{
-    bazi, Bazi, BaziOptions, ElementBalance, HiddenStem, Luck, LuckPillar, LunarDate, Pillar,
-    TermMoment,
+    bazi, Bazi, BaziFlow, BaziOptions, ElementBalance, HiddenStem, Luck, LuckPillar, LunarDate,
+    Pillar, TermMoment,
 };
 pub use chinese::calendar::{chinese_calendar, ChineseCalendar, LunarMonth, SolarTerm};
 pub use chinese::ziwei::{
