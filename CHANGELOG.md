@@ -8,6 +8,17 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.10]
+
+### Added
+
+- Zi Wei Dou Shu: each palace's `minor_stars` (the 38 minor stars of the common school),
+  `gods` (the 長生, 博士, 歲前 and 將前 cycles) and `flying` transformations of its stem;
+  the `year` option adds the `horoscope` of that year: the decade (or childhood) limit, the
+  small limit and the year, each with its palace names, transformations and moving stars,
+  and the year's gods.
+- Ba Zi: the `year` option adds the year's pillar (`annual`), seen from the Day Master.
+
 ## [0.0.9]
 
 ### Added
