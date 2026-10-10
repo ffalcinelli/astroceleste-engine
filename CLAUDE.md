@@ -124,7 +124,9 @@ Fixture comparison lives in `tests/common/mod.rs` (`diff`, `strip_private`). Key
 - Commits follow Conventional Commits; `release-plz update` (run locally) derives the version bump
   and `CHANGELOG.md` from them. Releases are trunk-based: pushing a `vX.Y.Z` tag on `main`
   runs `release.yml`, which checks the tag against `Cargo.toml` and the changelog, then publishes.
-  The version is 0.0.x (experimental, breaking changes allowed). One workspace version is shared
+  The version stays 0.0.x (experimental, breaking changes allowed): never mark a commit as
+  breaking (`!`, `BREAKING CHANGE:`), since release-plz would bump to 0.1; describe API
+  changes in the body. One workspace version is shared
   by the crate, the PyPI wheel (maturin reads it from Cargo) and the npm package (wasm-pack);
   the bindings' path dependency `version = "…"` must match it. Only the core crate goes to
   crates.io (`publish = false` on the bindings; `release.yml` publishes them to PyPI and npm).

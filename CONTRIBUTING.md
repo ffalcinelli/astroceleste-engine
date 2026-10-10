@@ -117,8 +117,12 @@ derives the version bump and the changelog from them:
 feat: add the true lunar node
 fix(houses): Placidus cusps above the polar circle
 docs: explain kernel excerpts
-feat!: rename ChartRequest::zodiac_type      # breaking change
+feat: rename ChartRequest::zodiac_type
 ```
+
+The version stays at 0.0.x while the engine is experimental, and any release may change
+the API. Do not mark commits as breaking (`!` or a `BREAKING CHANGE:` footer): release-plz
+would bump the minor version. Say what changed for callers in the commit body instead.
 
 Keep each pull request to one logical change. Before opening it, check that:
 

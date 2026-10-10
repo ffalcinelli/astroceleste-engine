@@ -5,9 +5,11 @@ Releases are trunk-based: there are no release branches or release PRs. Pushing 
 crate, the PyPI wheels and the npm package.
 
 1. Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org)
-   (`feat:`, `fix:`, `perf:`, `refactor:`, … and `!` for breaking changes). While the
-   version is 0.0.x, `feat`/`fix` bump the patch version and a breaking change bumps the
-   minor version.
+   (`feat:`, `fix:`, `perf:`, `refactor:`, …). The project stays experimental at 0.0.x,
+   where every release may break the API and only the patch version moves: do not mark
+   commits as breaking (no `!`, no `BREAKING CHANGE:` footer), because release-plz would
+   bump the minor version to 0.1. Describe an API change in the commit body instead, and
+   check the version `release-plz update` proposes before committing it.
 2. Prepare the release on `main`: run `release-plz update` (or edit by hand) to bump the
    workspace version, the bindings' `astroceleste-engine` dependency version and
    `CHANGELOG.md`, then commit as `chore: release vX.Y.Z` and push.
