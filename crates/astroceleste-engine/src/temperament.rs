@@ -4,20 +4,11 @@ use serde::Serialize;
 
 use crate::aspects::Aspect;
 use crate::chart::Placement;
+use crate::dignities::{element as element_of, traditional_ruler};
 use crate::pyfloat;
 
 /// Hot, cold, wet, dry.
 type Q = [f64; 4];
-
-fn element_of(sign: &str) -> Option<&'static str> {
-    Some(match sign {
-        "Aries" | "Leo" | "Sagittarius" => "Fire",
-        "Taurus" | "Virgo" | "Capricorn" => "Earth",
-        "Gemini" | "Libra" | "Aquarius" => "Air",
-        "Cancer" | "Scorpio" | "Pisces" => "Water",
-        _ => return None,
-    })
-}
 
 fn element_qualities(element: &str) -> Q {
     match element {
@@ -27,19 +18,6 @@ fn element_qualities(element: &str) -> Q {
         "Earth" => [0.0, 1.0, 0.0, 1.0],
         _ => [0.0; 4],
     }
-}
-
-fn ruler_of(sign: &str) -> Option<&'static str> {
-    Some(match sign {
-        "Aries" | "Scorpio" => "Mars",
-        "Taurus" | "Libra" => "Venus",
-        "Gemini" | "Virgo" => "Mercury",
-        "Cancer" => "Moon",
-        "Leo" => "Sun",
-        "Sagittarius" | "Pisces" => "Jupiter",
-        "Capricorn" | "Aquarius" => "Saturn",
-        _ => return None,
-    })
 }
 
 fn planet_qualities(planet: &str) -> Option<Q> {
@@ -144,7 +122,7 @@ pub fn temperament(planets: &[Placement], aspects: &[Aspect]) -> Temperament {
             element_qualities(element),
             4.0,
         );
-        let lord = ruler_of(asc.sign).unwrap_or("Mars");
+        let lord = traditional_ruler(asc.sign).unwrap_or("Mars");
         if let Some(lord_planet) = by_name(lord) {
             add(
                 "Lord of Ascendant Nature",

@@ -20,6 +20,7 @@ use crate::frames::nutation::iau2000b_radians;
 use crate::frames::{mxv, Orientation};
 use crate::instant::UtcInstant;
 use crate::planets::require_kernel;
+use crate::pyfloat::wrap180;
 use crate::time::Time;
 
 const SUN: i32 = 10;
@@ -145,10 +146,6 @@ fn date_of(day: i64) -> String {
 fn instant_of(jd: f64) -> UtcInstant {
     let seconds = ((jd - UNIX_EPOCH_JD) * 86_400.0).round() as i64;
     UtcInstant::from_micros(seconds * 1_000_000)
-}
-
-fn wrap180(degrees: f64) -> f64 {
-    (degrees + 180.0).rem_euclid(360.0) - 180.0
 }
 
 /// Offset of China time from UT, days: UTC+8 from 1929, the Beijing meridian before.

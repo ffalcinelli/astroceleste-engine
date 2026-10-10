@@ -333,15 +333,6 @@ pub struct Point<'a> {
     pub longitude: f64,
 }
 
-fn separation(a: f64, b: f64) -> f64 {
-    let diff = pyfloat::rem((a - b).abs(), 360.0);
-    if diff > 180.0 {
-        360.0 - diff
-    } else {
-        diff
-    }
-}
-
 fn is_node_pair(a: &str, b: &str) -> bool {
     (a == "North Node" && b == "South Node") || (a == "South Node" && b == "North Node")
 }
@@ -371,7 +362,7 @@ pub fn natal_aspects(points: &[Point], orbs: &OrbSettings) -> Result<Vec<Aspect>
             if is_node_pair(p1.name, p2.name) {
                 continue;
             }
-            let diff = separation(p1.longitude, p2.longitude);
+            let diff = pyfloat::separation(p1.longitude, p2.longitude);
             if let Some((rule, orb, max_orb)) = find_aspect(orbs, p1.name, p2.name, diff)? {
                 out.push(Aspect {
                     body1: p1.name.to_string(),
@@ -403,7 +394,7 @@ pub fn cross_aspects(
             if is_node_pair(o.name, b.name) {
                 continue;
             }
-            let diff = separation(o.longitude, b.longitude);
+            let diff = pyfloat::separation(o.longitude, b.longitude);
             if let Some((rule, orb, max_orb)) = find_aspect(&orbs, o.name, b.name, diff)? {
                 out.push(CrossAspect {
                     body1: o.name.to_string(),

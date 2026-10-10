@@ -188,7 +188,7 @@ impl<'k> SpeedSample<'k> {
         let app_plus = apparent(kernel, &a_plus, t_plus)?;
         let (lat, lon, dist) = ecliptic_latlon(&self.orientation, &app);
         let lon_plus = ecliptic_latlon(&self.orientation_plus, &app_plus).1;
-        let d_lon = pyfloat::rem(lon_plus - lon + 180.0, 360.0) - 180.0;
+        let d_lon = pyfloat::wrap180(lon_plus - lon);
         Ok((lat, lon, dist, d_lon * 24.0))
     }
 }

@@ -36,6 +36,22 @@ pub fn floordiv(a: f64, b: f64) -> f64 {
     divmod(a, b).0
 }
 
+/// Angular distance between two longitudes in degrees, 0-180: `abs(a - b) % 360`,
+/// folded.
+pub fn separation(a: f64, b: f64) -> f64 {
+    let d = rem((a - b).abs(), 360.0);
+    if d > 180.0 {
+        360.0 - d
+    } else {
+        d
+    }
+}
+
+/// An angle in degrees brought into [-180, 180): `(x + 180) % 360 - 180`.
+pub fn wrap180(x: f64) -> f64 {
+    rem(x + 180.0, 360.0) - 180.0
+}
+
 /// CPython `round(x, ndigits)`: correctly rounded, ties to even on the exact binary value.
 /// Rust's float formatting rounds the same way.
 pub fn round(x: f64, ndigits: usize) -> f64 {
