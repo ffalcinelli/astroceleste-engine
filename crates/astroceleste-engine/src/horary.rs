@@ -453,7 +453,6 @@ pub fn calculate_horary_chart(
     let judgment = judge(
         kernels,
         req.instant.julian_day(),
-        chart.ayanamsa_value.unwrap_or(0.0),
         &chart.planets,
         &cusp_signs(&cusps),
         asc_sign,

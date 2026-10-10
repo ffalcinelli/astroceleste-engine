@@ -12,7 +12,7 @@ use crate::chart::Placement;
 use crate::dignities::{traditional_ruler, Reception, SEVEN, SIGNS};
 use crate::ephemeris::KernelSet;
 use crate::horary::PTOLEMAIC;
-use crate::planets::calculate_planets;
+use crate::planets::planet_speed;
 use crate::pyfloat;
 
 /// The longest span a station is searched for, in days.
@@ -189,26 +189,13 @@ fn perfection(a: Body, b: Body) -> Option<Perfection> {
 }
 
 /// The first station of `planet` within `days`, from the ephemeris (days from now).
-fn station_within(
-    kernels: &KernelSet,
-    jd: f64,
-    shift: f64,
-    planet: Body,
-    days: f64,
-) -> Option<f64> {
+fn station_within(kernels: &KernelSet, jd: f64, planet: Body, days: f64) -> Option<f64> {
     if matches!(planet.name, "Sun" | "Moon") || days <= 0.0 {
         return None;
     }
     let span = days.min(MAX_REFRANATION_DAYS);
     let step = (span / 60.0).clamp(0.25, 5.0);
-    let speed_at = |t: f64| -> Option<f64> {
-        calculate_planets(kernels, jd + t, shift)
-            .ok()?
-            .bodies
-            .into_iter()
-            .find(|b| b.name == planet.name)
-            .map(|b| b.speed)
-    };
+    let speed_at = |t: f64| planet_speed(kernels, jd + t, planet.name).ok();
     let mut t = 0.0;
     let mut previous = planet.speed;
     while t < span {
@@ -227,7 +214,6 @@ fn station_within(
 pub(crate) fn judge(
     kernels: &KernelSet,
     jd: f64,
-    shift: f64,
     planets: &[Placement],
     cusp_signs: &[&'static str],
     asc_sign: &str,
@@ -308,9 +294,7 @@ pub(crate) fn judge(
         // Refranation: a significator stations before the aspect is exact.
         judgment.refranation = [a, q]
             .into_iter()
-            .filter_map(|sig| {
-                station_within(kernels, jd, shift, sig, p.days).map(|days| (sig.name, days))
-            })
+            .filter_map(|sig| station_within(kernels, jd, sig, p.days).map(|days| (sig.name, days)))
             .min_by(|l, r| l.1.total_cmp(&r.1))
             .map(|(planet, days)| Refranation {
                 planet,
@@ -418,16 +402,17 @@ mod tests {
         let jd = crate::UtcInstant::parse("2024-03-25T00:00:00Z")
             .unwrap()
             .julian_day();
-        let mercury = calculate_planets(&kernels, jd, 0.0)
+        let mercury = crate::planets::planets_and_sidereal_time(&kernels, jd, 0.0)
             .unwrap()
+            .0
             .bodies
             .into_iter()
             .find(|b| b.name == "Mercury")
             .unwrap();
         let body = b("Mercury", mercury.longitude, mercury.speed);
-        let days = station_within(&kernels, jd, 0.0, body, 30.0).unwrap();
+        let days = station_within(&kernels, jd, body, 30.0).unwrap();
         // The station is at 2024-04-01 ~22h UTC, 7.9 days on; samples are half a day apart.
         assert!((days - 7.9).abs() <= 0.6, "{days}");
-        assert!(station_within(&kernels, jd, 0.0, body, 5.0).is_none());
+        assert!(station_within(&kernels, jd, body, 5.0).is_none());
     }
 }

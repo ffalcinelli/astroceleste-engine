@@ -79,10 +79,31 @@ impl From<std::io::Error> for SpkError {
 /// demand from disk (multi-GB kernels such as de441 on the server).
 enum Storage {
     Memory(Vec<u8>),
-    File(Mutex<File>),
+    File(Mutex<FileStorage>),
+}
+
+/// Reads of a file-backed kernel kept for reuse: a chart evaluates the same few dozen
+/// Chebyshev records hundreds of times (most of them in the sunrise search), and each
+/// read from the file costs a seek and a read.
+const CACHED_READS: usize = 64;
+
+struct FileStorage {
+    file: File,
+    /// (byte offset, bytes) of recent reads.
+    cache: Vec<(usize, Box<[u8]>)>,
+    /// The cache slot the next miss replaces, round robin.
+    next: usize,
 }
 
 impl Storage {
+    fn file(file: File) -> Self {
+        Storage::File(Mutex::new(FileStorage {
+            file,
+            cache: Vec::with_capacity(CACHED_READS),
+            next: 0,
+        }))
+    }
+
     /// Size of the kernel in bytes.
     fn len(&self) -> Result<u64, SpkError> {
         match self {
@@ -90,6 +111,7 @@ impl Storage {
             Storage::File(file) => Ok(file
                 .lock()
                 .map_err(|_| SpkError::Io("poisoned lock".into()))?
+                .file
                 .metadata()?
                 .len()),
         }
@@ -105,12 +127,27 @@ impl Storage {
                 buf.copy_from_slice(&data[offset..end]);
                 Ok(())
             }
-            Storage::File(file) => {
-                let mut file = file
+            Storage::File(storage) => {
+                let mut storage = storage
                     .lock()
                     .map_err(|_| SpkError::Io("poisoned lock".into()))?;
+                let FileStorage { file, cache, next } = &mut *storage;
+                if let Some((_, bytes)) = cache
+                    .iter()
+                    .find(|(at, bytes)| *at == offset && bytes.len() == buf.len())
+                {
+                    buf.copy_from_slice(bytes);
+                    return Ok(());
+                }
                 file.seek(SeekFrom::Start(offset as u64))?;
                 file.read_exact(buf)?;
+                let entry = (offset, Box::from(&*buf));
+                if cache.len() < CACHED_READS {
+                    cache.push(entry);
+                } else {
+                    cache[*next] = entry;
+                    *next = (*next + 1) % CACHED_READS;
+                }
                 Ok(())
             }
         }
@@ -187,7 +224,7 @@ impl Spk {
 
     /// Open a kernel on disk; segment data is read on demand, so size is not a concern.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, SpkError> {
-        Self::load(Storage::File(Mutex::new(File::open(path)?)))
+        Self::load(Storage::file(File::open(path)?))
     }
 
     /// The kernel's segments, in file order.
@@ -352,9 +389,10 @@ impl Spk {
         self.check_type(segment)?;
         let index = (((et - segment.init) / segment.interval).floor().max(0.0) as usize)
             .min(segment.record_count - 1);
-        let words = self.record(segment, index)?;
-        let (mid, radius) = (words[0], words[1]);
-        Ok(self.evaluate(segment, &words, (et - mid) / radius))
+        self.with_record(segment, index, |words| {
+            let (mid, radius) = (words[0], words[1]);
+            self.evaluate(segment, words, (et - mid) / radius)
+        })
     }
 
     /// Evaluate one segment at a TDB Julian date given as `whole + fraction`, with the
@@ -389,8 +427,9 @@ impl Spk {
         if index < 0.0 || index >= count {
             return Err(out_of_range);
         }
-        let words = self.record(segment, index as usize)?;
-        Ok(self.evaluate(segment, &words, 2.0 * offset / intlen - 1.0))
+        self.with_record(segment, index as usize, |words| {
+            self.evaluate(segment, words, 2.0 * offset / intlen - 1.0)
+        })
     }
 
     fn check_type(&self, segment: &Segment) -> Result<(), SpkError> {
@@ -401,11 +440,31 @@ impl Spk {
         }
     }
 
-    fn record(&self, segment: &Segment, index: usize) -> Result<Vec<f64>, SpkError> {
-        self.read_words(
+    /// `f` applied to the words of record `index` of `segment`, decoded into a stack
+    /// buffer (records of the planetary ephemerides are a few dozen words).
+    fn with_record<R>(
+        &self,
+        segment: &Segment,
+        index: usize,
+        f: impl FnOnce(&[f64]) -> R,
+    ) -> Result<R, SpkError> {
+        const STACK_WORDS: usize = 128;
+        let (first, count) = (
             segment.start_word + index * segment.record_size,
             segment.record_size,
-        )
+        );
+        if count > STACK_WORDS {
+            return Ok(f(&self.read_words(first, count)?));
+        }
+        self.check_words(first, count)?;
+        let mut bytes = [0u8; STACK_WORDS * WORD_BYTES];
+        let bytes = &mut bytes[..count * WORD_BYTES];
+        self.storage.read_bytes((first - 1) * WORD_BYTES, bytes)?;
+        let mut words = [0.0; STACK_WORDS];
+        for (word, raw) in words.iter_mut().zip(bytes.chunks_exact(WORD_BYTES)) {
+            *word = self.to_f64(raw.try_into().unwrap());
+        }
+        Ok(f(&words[..count]))
     }
 
     /// Position and velocity from one Chebyshev record at normalized time `s`.
@@ -559,7 +618,8 @@ impl Spk {
         Ok(out)
     }
 
-    fn read_words(&self, first_word: usize, count: usize) -> Result<Vec<f64>, SpkError> {
+    /// Words `first_word..first_word + count` (1-based) must lie inside the file.
+    fn check_words(&self, first_word: usize, count: usize) -> Result<(), SpkError> {
         if first_word == 0 {
             return Err(SpkError::Format("word address 0".into()));
         }
@@ -569,6 +629,11 @@ impl Spk {
         {
             return Err(SpkError::Format("read past end of file".into()));
         }
+        Ok(())
+    }
+
+    fn read_words(&self, first_word: usize, count: usize) -> Result<Vec<f64>, SpkError> {
+        self.check_words(first_word, count)?;
         let mut buf = vec![0u8; count * WORD_BYTES];
         self.storage
             .read_bytes((first_word - 1) * WORD_BYTES, &mut buf)?;

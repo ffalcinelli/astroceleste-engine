@@ -14,11 +14,11 @@ use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::fixed_stars::{fixed_stars, FixedStarPosition};
 use crate::horary::{planetary_hours, PlanetaryHours};
-use crate::houses::{calculate_houses, HouseSystem, Houses};
+use crate::houses::{houses_at_sidereal_time, HouseSystem, Houses};
 use crate::instant::UtcInstant;
 use crate::lots::{arabic_parts, Lot};
 use crate::lunar::{lunar_status, LunarStatus};
-use crate::planets::calculate_planets;
+use crate::planets::planets_and_sidereal_time;
 use crate::symbolic::symbolic_degree_number;
 use crate::temperament::{temperament, Temperament};
 use crate::zodiac::{
@@ -275,9 +275,11 @@ pub(crate) fn sky(kernels: &KernelSet, req: &ChartRequest) -> Result<Sky, Engine
     let info = ayanamsa_info(jd, ayanamsa_code);
     let shift = if is_sidereal { info.value } else { 0.0 };
 
-    let engine = calculate_planets(kernels, jd, shift)?;
-    let houses = calculate_houses(
+    // The houses reuse the planets' sidereal time (the same instant): one nutation.
+    let (engine, gast_hours) = planets_and_sidereal_time(kernels, jd, shift)?;
+    let houses = houses_at_sidereal_time(
         jd,
+        gast_hours,
         req.latitude,
         req.longitude,
         HouseSystem::from_code(req.house_system),

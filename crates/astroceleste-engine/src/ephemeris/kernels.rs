@@ -83,23 +83,26 @@ impl Kernel {
     /// `VectorSum`.
     #[doc(hidden)] // takes the internal `Time`
     pub fn barycentric(&self, code: i32, t: &Time) -> Result<(Vec3, Vec3), SpkError> {
+        const MAX_CHAIN: usize = 8;
         let et = (t.whole - T0 + t.tdb_fraction) * DAY_S;
-        let mut chain = Vec::new();
+        let mut chain: [Option<&Segment>; MAX_CHAIN] = [None; MAX_CHAIN];
+        let mut len = 0;
         let mut current = code;
         while current != SSB {
+            if len == MAX_CHAIN {
+                return Err(SpkError::Format(format!("segment chain for {code} loops")));
+            }
             let segment = self.segment_for(current, et).ok_or(SpkError::NoSegment {
                 target: current,
                 center: SSB,
             })?;
-            chain.push(segment);
+            chain[len] = Some(segment);
+            len += 1;
             current = segment.center;
-            if chain.len() > 8 {
-                return Err(SpkError::Format(format!("segment chain for {code} loops")));
-            }
         }
         let mut position = [0.0; 3];
         let mut velocity = [0.0; 3];
-        for segment in chain.iter().rev() {
+        for segment in chain[..len].iter().rev().flatten() {
             let (p, v) = self
                 .spk
                 .segment_state_split(segment, t.whole, t.tdb_fraction)?;
