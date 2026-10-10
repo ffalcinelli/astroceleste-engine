@@ -240,19 +240,8 @@ pub(crate) fn jie_before(moment: UtcInstant) -> Option<(usize, i32, UtcInstant)>
 mod tests {
     use super::*;
     use crate::chinese::calendar::jie_of_year;
-    use crate::ephemeris::{Kernel, KernelSet, Spk};
 
-    fn kernels() -> Option<KernelSet> {
-        let path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../kernels/de440s.bsp");
-        if !path.exists() {
-            eprintln!("skipping: {} not found", path.display());
-            return None;
-        }
-        let mut set = KernelSet::new();
-        set.push(Kernel::new("de440s.bsp", Spk::open(path).unwrap()).unwrap());
-        Some(set)
-    }
+    use crate::test_kernel::full_kernel as kernels;
 
     fn minutes(jd: f64) -> u32 {
         ((jd - 2_415_020.5) * 1440.0).round() as u32

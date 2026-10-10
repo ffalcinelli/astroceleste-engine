@@ -390,15 +390,9 @@ mod tests {
 
     #[test]
     fn mercury_stations_retrograde_on_1_april_2024() {
-        use crate::ephemeris::{Kernel, Spk};
-        let path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../kernels/de440s.bsp");
-        if !path.exists() {
-            eprintln!("skipping: {} not found", path.display());
+        let Some(kernels) = crate::test_kernel::full_kernel() else {
             return;
-        }
-        let mut kernels = KernelSet::new();
-        kernels.push(Kernel::new("de440s.bsp", Spk::open(path).unwrap()).unwrap());
+        };
         let jd = crate::UtcInstant::parse("2024-03-25T00:00:00Z")
             .unwrap()
             .julian_day();

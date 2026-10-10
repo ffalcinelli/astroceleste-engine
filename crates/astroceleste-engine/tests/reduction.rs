@@ -84,6 +84,11 @@ fn delta_t_matches_skyfield() {
 fn reduction_matches_skyfield() {
     let path = root().join("kernels/de440s.bsp");
     if !path.exists() {
+        assert!(
+            std::env::var_os("ASTROCELESTE_REQUIRE_KERNEL").is_none(),
+            "{} not found and ASTROCELESTE_REQUIRE_KERNEL is set",
+            path.display()
+        );
         eprintln!("skipping: {} not found", path.display());
         return;
     }

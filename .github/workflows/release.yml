@@ -18,8 +18,31 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    # Nothing is published unless the tagged commit passes the tests on the full kernel,
+    # whatever CI said about it.
+    name: test the tagged commit
+    if: github.repository_owner == 'ffalcinelli'
+    runs-on: ubuntu-latest
+    env:
+      ASTROCELESTE_REQUIRE_KERNEL: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: kernels
+          key: jpl-kernels-de440s
+      - run: scripts/fetch-kernels.sh
+      - run: cargo test --workspace --exclude astroceleste-engine-py --release
+
   release:
     name: publish
+    needs: verify
     if: github.repository_owner == 'ffalcinelli'
     runs-on: ubuntu-latest
     environment: release
@@ -152,6 +175,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm install --global wasm-pack@0.15.0
       - run: wasm-pack build --release --target web crates/astroceleste-engine-wasm
+      - run: node crates/astroceleste-engine-wasm/tests/web_smoke.mjs
       - name: publish
         working-directory: crates/astroceleste-engine-wasm/pkg
         env:

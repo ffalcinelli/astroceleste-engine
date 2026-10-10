@@ -11,10 +11,16 @@ pub fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// The full de440s kernel, or `None` (test skipped) when it has not been fetched.
+/// The full de440s kernel, or `None` (test skipped) when it has not been fetched. With
+/// `ASTROCELESTE_REQUIRE_KERNEL` set (as in CI), a missing kernel fails instead.
 pub fn kernels() -> Option<KernelSet> {
     let path = root().join("kernels/de440s.bsp");
     if !path.exists() {
+        assert!(
+            std::env::var_os("ASTROCELESTE_REQUIRE_KERNEL").is_none(),
+            "{} not found and ASTROCELESTE_REQUIRE_KERNEL is set",
+            path.display()
+        );
         eprintln!(
             "skipping: {} not found (scripts/fetch-kernels.sh)",
             path.display()

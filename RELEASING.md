@@ -13,11 +13,12 @@ crate, the PyPI wheels and the npm package.
    `CHANGELOG.md`, then commit as `chore: release vX.Y.Z` and push.
 3. Once CI is green, tag that commit and push the tag:
    `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. The `Release` workflow checks that the tag is on `main`, matches the version in
-   `Cargo.toml` and has a `CHANGELOG.md` entry. It then publishes the crate to crates.io,
+4. The `Release` workflow runs the tests of the tagged commit on the full kernel, and
+   checks that the tag is on `main`, matches the version in `Cargo.toml` and has a
+   `CHANGELOG.md` entry. It then publishes the crate to crates.io,
    creates the GitHub Release from the changelog entry, and publishes the Python wheels
    (Linux x86_64/aarch64 glibc and musl, macOS universal2, Windows x64, sdist) to PyPI
-   and the WebAssembly package to npm.
+   and the WebAssembly package to npm (after a smoke test of that browser build).
 
 Protect `v*` tags with a tag ruleset so only maintainers can trigger a release.
 

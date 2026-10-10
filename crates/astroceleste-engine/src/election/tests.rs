@@ -264,22 +264,11 @@ fn dignities() {
     assert_eq!(sign_of(-0.5), "Pisces");
 }
 
-/// The full de440s kernel, when it has been fetched (scripts/fetch-kernels.sh).
-fn kernels() -> Option<KernelSet> {
-    use crate::ephemeris::{Kernel, Spk};
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../kernels/de440s.bsp");
-    let spk = Spk::open(path).ok()?;
-    let mut set = KernelSet::new();
-    set.push(Kernel::new("de440s.bsp", spk).ok()?);
-    Some(set)
-}
+use crate::test_kernel::full_kernel as kernels;
 
 #[test]
 fn interpolated_moments_match_exact_ones() {
-    let Some(kernels) = kernels() else {
-        eprintln!("skipping: kernels/de440s.bsp not found");
-        return;
-    };
+    let Some(kernels) = kernels() else { return };
     for (zodiac, system) in [("tropical", "P"), ("sidereal", "W")] {
         let mut origin = ChartRequest::new(
             UtcInstant::parse("2026-10-01T00:00:00Z").unwrap(),

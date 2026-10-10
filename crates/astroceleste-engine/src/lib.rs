@@ -140,6 +140,8 @@ mod planets;
 mod pyfloat;
 mod symbolic;
 mod temperament;
+#[cfg(test)]
+mod test_kernel;
 #[doc(hidden)] // exposed for the reduction tests; not part of the API
 pub mod time;
 mod time_lords;
