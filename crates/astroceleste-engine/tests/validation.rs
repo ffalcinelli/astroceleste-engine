@@ -26,10 +26,15 @@ fn request(lat: f64, lon: f64) -> ChartRequest<'static> {
     ChartRequest::new(utc("2000-06-15T10:00:00Z"), lat, lon)
 }
 
-fn assert_invalid<T: std::fmt::Debug>(result: Result<T, EngineError>, what: &str) {
+// Messages name the result type rather than print it: CodeQL's cleartext-logging query
+// takes the chart's longitudes for geolocation.
+fn assert_invalid<T>(result: Result<T, EngineError>, what: &str) {
     match result {
         Err(err) => assert_eq!(err.code(), "invalid_input", "{what}: {err}"),
-        Ok(value) => panic!("{what}: expected invalid_input, got {value:?}"),
+        Ok(_) => panic!(
+            "{what}: expected invalid_input, got Ok({})",
+            std::any::type_name::<T>()
+        ),
     }
 }
 
@@ -86,7 +91,7 @@ fn every_house_system_gives_finite_cusps_at_any_latitude() {
                     let lon = cusp.ecliptic_longitude;
                     assert!(
                         lon.is_finite() && (0.0..360.0).contains(&lon),
-                        "{hs} at {lat}° {hour}h: cusp {} = {lon}",
+                        "{hs} at {lat}° {hour}h: cusp {} outside [0, 360)",
                         cusp.house_number
                     );
                 }
