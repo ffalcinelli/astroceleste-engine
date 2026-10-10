@@ -1265,7 +1265,8 @@ impl<'a> SolarDays<'a> {
 /// out, and runs of consecutive moments scoring at least `min_score` form the windows,
 /// ranked by their best score. Positions between hourly grid points are interpolated
 /// for speed, then each window's best moment is assessed again on exact positions, so
-/// its score and factors are what [`calculate_election_chart`] gives for it.
+/// its score and factors are what [`calculate_election_chart`] gives for it. A window
+/// whose best moment turns out excluded or below `min_score` there is left out.
 pub fn search_elections(
     kernels: &KernelSet,
     req: &ChartRequest,
@@ -1367,36 +1368,46 @@ pub fn search_elections(
 
     // Best first; earlier first on a tie (windows are already in time order).
     windows.sort_by(|a, b| b.1.score.total_cmp(&a.1.score));
-    windows.truncate(resolved.summary.max_results);
 
-    // The best moments again, on exact positions.
-    for (best, window) in &mut windows {
+    // The best moments again, on exact positions. A window whose best moment does not
+    // hold up (interpolation put it just inside an exclusion or the threshold) is left
+    // out, and the next one takes its place.
+    let max_results = resolved.summary.max_results;
+    let mut confirmed = Vec::with_capacity(max_results.min(windows.len()));
+    for (best, mut window) in windows {
+        if confirmed.len() == max_results {
+            break;
+        }
         let exact = sky(
             kernels,
             &ChartRequest {
-                instant: *best,
+                instant: best,
                 ..req.clone()
             },
         )?;
         let data = assess(
             &Moment {
-                instant: *best,
+                instant: best,
                 planets: &exact.planets,
                 cusps: &exact.cusps,
-                hours: &days.hours(*best),
+                hours: &days.hours(best),
             },
             &resolved,
         )?;
+        if !data.excluded_by.is_empty() || data.score < resolved.summary.min_score {
+            continue;
+        }
         window.score = data.score;
         window.verdict = data.verdict;
         window.factors = data.factors;
+        confirmed.push(window);
     }
-    windows.sort_by(|a, b| b.1.score.total_cmp(&a.1.score));
+    confirmed.sort_by(|a, b| b.score.total_cmp(&a.score));
 
     Ok(ElectionSearch {
         start: start.isoformat(),
         end: end.isoformat(),
-        windows: windows.into_iter().map(|(_, w)| w).collect(),
+        windows: confirmed,
         evaluated,
         excluded,
         criteria: resolved.summary,
