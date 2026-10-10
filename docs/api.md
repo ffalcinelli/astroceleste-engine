@@ -13,9 +13,20 @@ snake_case keys.
 | `calculate_derived_chart` | `derived_chart` | `derivedChart` |
 | `calculate_election_chart` | `Engine.election` | `engine.election` |
 | `search_elections` | `Engine.elections` | `engine.elections` |
+| `chinese_calendar` | `Engine.chinese_calendar` | `engine.chineseCalendar` |
+| `chart_dignities` | `chart_dignities` | `chartDignities` |
+| `time_lords` | `time_lords` | `timeLords` |
+| `degree_qualities` | `degree_qualities` | `degreeQualities` |
+| `degree_quality_table` | `degree_quality_table` | `degreeQualityTable` |
+| `bazi` | `bazi` | `bazi` |
+| `zi_wei` | `zi_wei` | `ziWei` |
+| `UtcInstant::julian_day` | `julian_day` | `julianDay` |
+| `Spk::excerpt` | `excerpt_kernel` | `excerptKernel` |
+| `KernelSet::kernels` / `coverage` / `for_jd` | `Engine.kernels` / `coverage` / `supports` | `engine.kernels` / `coverage` / `supports` |
 
-Every calculation needs JPL kernels (see [Ephemerides](ephemerides.md)); synastry and
-derived charts work on already computed charts and do not.
+The chart, horary, transit and election calculations and the Chinese calendar need JPL
+kernels (see [Ephemerides](ephemerides.md)). The other entry points work on already
+computed charts or calendars, or on plain longitudes, and do not.
 
 ## A chart request
 
@@ -138,9 +149,10 @@ A chart is an object with these keys, in this order:
 | `receptions` | receptions among the seven planets: `{planet, receiver, dignities, mutual, aspect}` |
 | `antiscia` | antiscion and contra-antiscion contacts: `{body1, body2, kind, orb}` |
 | `planetary_hours` | the planetary day and hour (left out of transit skies) |
+| `chinese_calendar` | only when requested: solar terms, lunar months, equation of time (see [Chinese astrology](chinese.md)) |
 
-The last five keys and each planet's `condition` are additions to the reference
-implementation; [dignities](dignities.md) gives their tables and rules.
+The keys from `sect` on and each planet's `condition` are additions to the reference
+implementation; [dignities](dignities.md) gives the tables and rules of the first five.
 
 A placement in `planets` (houses, fixed stars and lots use a similar shape):
 
@@ -248,7 +260,7 @@ A span of more than 1000 years (`MAX_TIME_LORDS_YEARS`) is an `invalid_input` er
 
 ## Chinese astrology
 
-A chart requested with `chinese_calendar` carries the Chinese calendar of its moment: the solar terms, the lunar months and the equation of time. `bazi(calendar, birth, longitude, utc_offset_minutes, …)` (no kernel needed) casts the Four Pillars from it, with the hidden stems, Ten Gods, NaYin, element balance and luck pillars, and with `date` the pillars of that date. `zi_wei(…)` (JavaScript `ziWei`, no kernel needed either) casts the Zi Wei Dou Shu chart: the twelve palaces, the five-element bureau, the fourteen major and fourteen auxiliary stars with their brightness, the 38 minor stars and the cycles of twelve gods, the Four Transformations natal and flying, the decade and small limits, and with `year` the horoscope of that year. The rules and the result are described in [Chinese astrology](chinese.md).
+A chart requested with `chinese_calendar` carries the Chinese calendar of its moment: the solar terms, the lunar months and the equation of time. `chinese_calendar(moment)` (Python `Engine.chinese_calendar`, JavaScript `engine.chineseCalendar`) computes it on its own; it is `None`/`null` when the kernels do not cover the year or so of ephemeris it needs. `bazi(calendar, birth, longitude, utc_offset_minutes, …)` (no kernel needed) casts the Four Pillars from it, with the hidden stems, Ten Gods, NaYin, element balance and luck pillars, and with `date` the pillars of that date. `zi_wei(…)` (JavaScript `ziWei`, no kernel needed either) casts the Zi Wei Dou Shu chart: the twelve palaces, the five-element bureau, the fourteen major and fourteen auxiliary stars with their brightness, the 38 minor stars and the cycles of twelve gods, the Four Transformations natal and flying, the decade and small limits, and with `year` the horoscope of that year. The rules and the result are described in [Chinese astrology](chinese.md).
 
 ## Elections
 
@@ -351,9 +363,11 @@ Each failure has a stable code, shared with the Astroceleste HTTP API:
 | `ephemeris_out_of_range` | no loaded kernel covers the date | `EngineError::OutOfRange` | `EphemerisRangeError` | `Error` with `code` |
 | `ephemeris_error` | a kernel could not be read or evaluated | `EngineError::Ephemeris` | `EngineError` | `Error` with `code` |
 | `invalid_input` | malformed request: a date that does not exist, a place off the Earth (latitude beyond ±90°, longitude beyond ±360°, NaN), a non-numeric, NaN or infinite orb, a quesited house outside 1–12, a span too long, … | `EngineError::InvalidInput` | `ValueError` | `Error` with `code` |
-| `invalid_kernel` | a kernel file is not a valid SPK file (JS `addKernel`) | `SpkError` when loading | `EngineError` | `Error` with `code` |
+| `invalid_kernel` | a kernel file cannot be read or is not a valid SPK file | `SpkError` when loading | `EngineError` | `Error` with `code` |
+| `internal_error` | a result could not be converted for the binding (a bug) | — | `EngineError` | `Error` with `code` |
 
-In Rust, `EngineError::code()` returns the code. Dates outside the loaded kernels are
+In Rust, `EngineError::code()` returns the code; in Python and JavaScript every exception
+carries it in `code`. Dates outside the loaded kernels are
 always reported as errors and never approximated. Check them upfront with `supports(jd)` /
 `coverage` in Python and JavaScript, or `KernelSet::for_jd` / `KernelSet::coverage` in
 Rust.

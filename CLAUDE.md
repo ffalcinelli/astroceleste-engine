@@ -69,7 +69,7 @@ Core pipeline (`crates/astroceleste-engine/src`):
   before fixture comparison (`tests/common/mod.rs`, and the bindings' tests) and tested in
   `tests/dignities.rs`. `horary.rs` adds planetary hours (via `almanac.rs` sunrise/sunset);
   `derived.rs` builds transits, synastry and derived charts on top of `calculate_chart`;
-  `election.rs` scores moments by electional rules (stable factor codes, no wording) and
+  `election/` scores moments by electional rules (stable factor codes, no wording) and
   searches spans. Its search interpolates between hourly exact positions (`Sampler`) and
   re-assesses each window's best moment exactly. Keep the lean `chart::sky` path identical to
   `calculate_chart`'s positions. `chinese/` (`docs/chinese.md`) holds the Chinese calendar
@@ -103,7 +103,8 @@ Module doc comments name the reference function each module ports (e.g.
 
 ### Matching Python semantics
 
-Use `pyfloat.rs` (`rem`, `floordiv`, `divmod`, `round`, `round_int`) wherever the reference
+Use `pyfloat.rs` (`rem`, `floordiv`, `divmod`, `round`, `round_int`; `separation` and
+`wrap180` for angles) wherever the reference
 uses Python `%`, `//` or `round()`: Rust's `%` and `f64::round` differ at boundaries and move
 signs/orbs. Output structs must serialize ints vs floats exactly as the reference does.
 

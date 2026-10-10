@@ -24,8 +24,10 @@ and iOS.
                                   │
    time.rs ─────── UT1 / TT / TDB, ΔT (embedded data/deltat.bin)
                                   │
-   ephemeris/ ──── spk.rs      read JPL SPK kernels (file or bytes), Chebyshev states
-                   kernels.rs  KernelSet: first kernel covering the date wins, else OutOfRange
+   ephemeris/ ──── spk.rs      read JPL SPK kernels (file, with recent reads cached, or
+                               bytes), Chebyshev states
+                   kernels.rs  KernelSet: first kernel covering the date wins, else OutOfRange;
+                               a body may span several segments
                    observe.rs  apparent geocentric positions: light-time, deflection, aberration
                                   │
    frames/ ─────── precession, nutation, sidereal time → true ecliptic of date
@@ -38,20 +40,26 @@ and iOS.
                                   │
    chart.rs ────── calculate_chart → Chart (+ planetary hours, almanac.rs)
                                   │
-   horary.rs ───── + planetary hours (almanac.rs sunrise/sunset), significators, strictures
+   horary.rs ───── + planetary hours (almanac.rs sunrise/sunset), significators, strictures,
+                   and judgment.rs: perfection, prohibition, translation, collection
    derived.rs ──── transits, synastry, derived charts on top of calculate_chart
-   election.rs ─── electional score of a moment; search over a span (interpolated between
-                   hourly exact positions, sunrises found once for the span)
+   election/ ───── criteria.rs, assess.rs: electional score of a moment; search.rs: search
+                   over a span (interpolated between hourly exact positions, sunrises found
+                   once for the span)
+   time_lords.rs · degree_qualities.rs ─── profections and firdaria; Lilly's degree
+                   qualities (both kernel-free)
    chinese/ ────── calendar.rs: solar terms, new moons, lunar and leap months, equation of
                    time (on request with a chart); bazi.rs: the Four Pillars; ziwei.rs: Zi Wei
-                   Dou Shu (both kernel-free)
+                   Dou Shu (both kernel-free); lunar_table.rs and jie_table.rs: the lunar
+                   years and jie terms of 1900-2100, embedded
 ```
 
 Supporting modules:
 
 - `instant.rs`: UTC instants with microsecond resolution and Python `datetime` semantics
   (ISO formatting, float-day arithmetic).
-- `pyfloat.rs`: Python `%`, `//`, `divmod` and `round()`. See [Accuracy](accuracy.md).
+- `pyfloat.rs`: Python `%`, `//`, `divmod` and `round()`, and the angle helpers built on
+  them (`separation`, `wrap180`). See [Accuracy](accuracy.md).
 - `symbolic.rs`: symbolic (1–30) degree numbering.
 - `catalog/`: static tables (fixed stars, lunar mansions, derived-house meanings). This is
   generated code, excluded from rustfmt and clippy.
@@ -69,6 +77,8 @@ can be compared side by side.
 | `tests/data/de440s_2000.bsp`, `tests/fixtures/spk_reference.json` | `scripts/make_spk_fixtures.py` (jplephem) |
 | `tests/fixtures/reduction.json` | `scripts/make_reduction_fixtures.py` (Skyfield) |
 | `tests/fixtures/{natal,horary,…}.json` | the reference implementation |
+| `tests/fixtures/ziwei_iztro*.json` | `scripts/make_ziwei_*fixtures.cjs` ([iztro](https://github.com/SylarLong/iztro)) |
+| `src/chinese/lunar_table.rs`, `src/chinese/jie_table.rs` | their ignored `print_table` tests, on the full kernel |
 
 None of these is edited by hand.
 

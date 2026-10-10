@@ -12,7 +12,7 @@ computed entirely in the browser (or Node), identical to the Astroceleste server
 [API guide](https://github.com/ffalcinelli/astroceleste-engine/blob/main/docs/api.md)
 
 ```js
-import init, { Engine, synastry, derivedChart } from "astroceleste-engine";
+import init, { Engine, synastry, derivedChart, bazi, ziWei, timeLords } from "astroceleste-engine";
 
 await init();
 const engine = new Engine();
@@ -23,15 +23,26 @@ const chart = engine.chart({
   utc: "1987-05-17T14:30:00Z",
   latitude: 41.9,
   longitude: 12.5,
-  house_system: "P",        // optional: P, W, E, O
+  house_system: "P",        // optional: P, K, R, C, T, B, M, O, E, V, W
   zodiac_type: "sidereal",  // optional: tropical (default) or sidereal
   ayanamsa: "lahiri",       // optional
+  chinese_calendar: true,   // optional: add the Chinese calendar of the moment
 });
-const horary = engine.horary(request);                 // chart + horary_data
+const horary = engine.horary({ ...request, quesited_house: 7 }); // chart + horary_data
 const transit = engine.transit(chart.planets, request);
+const election = engine.election(request, { purpose: "contract" });
+const windows = engine.elections(request, "1987-06-17T00:00:00Z", { purpose: "launch" });
 synastry(chartA.planets, chartB.planets);
 derivedChart(chart, 5);
+timeLords(birthUtc, sunLongitude, ascendantLongitude, fromUtc, toUtc);
+bazi(chart.chinese_calendar, request.utc, 12.5, 60);   // Four Pillars, UTC offset in minutes
+ziWei(chart.chinese_calendar, request.utc, 12.5, 60);  // Zi Wei Dou Shu
 ```
+
+Also: `engine.chineseCalendar(utc)`, `engine.kernels`, `engine.coverage`,
+`engine.supports(jd)`, `chartDignities(chart, "dorothean")`, `degreeQualities(longitude)`,
+`degreeQualityTable()` and `julianDay(utc)`. The [API guide](https://github.com/ffalcinelli/astroceleste-engine/blob/main/docs/api.md)
+describes every option and result.
 
 To ship a smaller kernel, cut the range you need (positions are unchanged inside it):
 
@@ -41,7 +52,7 @@ const small = excerptKernel(fullKernelBytes, 2415020.5, 2488069.5); // 1900-2100
 ```
 
 Errors are thrown as `Error` objects with a `code` (`ephemeris_out_of_range`,
-`invalid_input`, `invalid_kernel`).
+`ephemeris_error`, `invalid_input`, `invalid_kernel`, `internal_error`).
 
 JPL kernels: https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/ (`de440s.bsp` covers 1849-2150,
 32 MB). Licensed under MIT OR Apache-2.0.

@@ -51,6 +51,11 @@ scripts/build-site.sh && python3 -m http.server -d target/site
 The Python crate is excluded from `cargo test` because it links against libpython. Test it
 through maturin.
 
+Tests that need `kernels/de440s.bsp` print "skipping" and pass when it is missing. Set
+`ASTROCELESTE_REQUIRE_KERNEL=1` to make that a failure, as CI does. For a performance
+change, compare `cargo test --release --test timing -- --ignored --nocapture` before and
+after.
+
 [docs/architecture.md](docs/architecture.md) explains how the code is organised.
 
 ## Correctness first
@@ -66,6 +71,8 @@ every number it produces is checked against a reference:
   kernel states from `jplephem` (`scripts/make_spk_fixtures.py`).
 - `tests/fixtures/reduction.json`: stage-by-stage reduction values from Skyfield
   (`scripts/make_reduction_fixtures.py`).
+- `tests/fixtures/ziwei_iztro*.json`: Zi Wei Dou Shu charts from
+  [iztro](https://github.com/SylarLong/iztro) (`scripts/make_ziwei_*fixtures.cjs`).
 
 A change that moves any fixture value must explain why the new value is more correct, and
 regenerate the fixtures in the same pull request.
@@ -107,7 +114,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org). `release-plz up
 derives the version bump and the changelog from them:
 
 ```text
-feat: add Koch houses
+feat: add the true lunar node
 fix(houses): Placidus cusps above the polar circle
 docs: explain kernel excerpts
 feat!: rename ChartRequest::zodiac_type      # breaking change
