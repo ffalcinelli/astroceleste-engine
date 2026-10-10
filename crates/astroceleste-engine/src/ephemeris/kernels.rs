@@ -12,6 +12,7 @@ pub const SSB: i32 = 0;
 /// One loaded kernel and the Julian-date span over which it has every body (a chart needs
 /// all of them, so the usable span is the intersection of the bodies' spans). A body may
 /// be split into several segments covering consecutive time ranges.
+#[derive(Debug)]
 pub struct Kernel {
     /// Label used in error messages and diagnostics, e.g. "de440s.bsp".
     pub name: String,
@@ -145,7 +146,7 @@ fn longer(a: (f64, f64), b: (f64, f64)) -> (f64, f64) {
 }
 
 /// Kernels in preference order: a date is computed with the first kernel covering it.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct KernelSet {
     kernels: Vec<Kernel>,
 }

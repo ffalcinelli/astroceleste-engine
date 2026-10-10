@@ -214,7 +214,7 @@ fn empty_object_if_none<S: Serializer>(v: &Option<LunarStatus>, s: S) -> Result<
 
 impl Chart {
     /// The chart's planets and angles as named ecliptic points.
-    pub fn points(&self) -> Vec<Point<'_>> {
+    pub(crate) fn points(&self) -> Vec<Point<'_>> {
         self.planets
             .iter()
             .map(|p| Point {

@@ -92,8 +92,8 @@ the entry points, `ChartRequest`, `EngineError`, `UtcInstant` and every type rea
 result (`Chart`, `Placement`, `HoraryData`, …). A new result type must be added to those
 re-exports. `time`, `frames` and `ephemeris::observe` are `pub` + `#[doc(hidden)]` only for the
 `tests/reduction.rs` integration test. `missing_docs` is enabled and CI denies warnings, so every
-public item needs a doc comment. `EngineError`, `SpkError` and `HouseSystem` are
-`#[non_exhaustive]`.
+public item needs a doc comment. `EngineError` and `SpkError` are `#[non_exhaustive]`
+(`HouseSystem` is internal: requests carry the house code as a string).
 
 Module doc comments name the reference function each module ports (e.g.
 `SkyfieldEngine.calculate_planets`, `charts/calc/derived.py`); keep that mapping when porting.
