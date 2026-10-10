@@ -16,10 +16,10 @@ use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     bazi as core_bazi, calculate_chart, calculate_derived_chart, calculate_election_chart,
     calculate_horary_chart, calculate_synastry, calculate_transit_chart,
-    chart_dignities as core_chart_dignities, degree_qualities as core_degree_qualities,
-    degree_quality_table as core_degree_quality_table, search_elections,
-    time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions, ChartRequest,
-    ChineseCalendar, ElectionCriteria, EngineError, UtcInstant, ZiWeiOptions,
+    chart_dignities as core_chart_dignities, chinese_calendar as core_chinese_calendar,
+    degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
+    search_elections, time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions,
+    ChartRequest, ChineseCalendar, ElectionCriteria, EngineError, UtcInstant, ZiWeiOptions,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -85,7 +85,7 @@ struct Request {
     /// Horary only: the house of the matter asked about (1-12).
     #[serde(default)]
     quesited_house: Option<u8>,
-    /// Also compute the Chinese calendar of the moment.
+    /// Also compute the Chinese calendar of the moment (not for transits).
     #[serde(default)]
     chinese_calendar: bool,
 }
@@ -136,6 +136,18 @@ impl Engine {
             Kernel::new(name, spk).map_err(|e| js_error("invalid_kernel", &e.to_string()))?;
         self.kernels.push(kernel);
         Ok(())
+    }
+
+    /// The loaded kernels as `[name, firstJD, lastJD]`, in preference order.
+    #[wasm_bindgen(getter)]
+    pub fn kernels(&self) -> Result<JsValue, JsValue> {
+        let kernels: Vec<(&str, f64, f64)> = self
+            .kernels
+            .kernels()
+            .iter()
+            .map(|k| (k.name.as_str(), k.start_jd, k.end_jd))
+            .collect();
+        to_js(&kernels)
     }
 
     /// `[firstJD, lastJD]` covered by the loaded kernels, or `undefined`.
@@ -199,6 +211,15 @@ impl Engine {
         )
         .map_err(engine_error)?;
         to_js(&result)
+    }
+
+    /// The Chinese calendar around `utc` (ISO 8601): solar terms, lunar months and the
+    /// equation of time; `null` when the loaded kernels do not cover the year or so it
+    /// needs.
+    #[wasm_bindgen(js_name = chineseCalendar)]
+    pub fn chinese_calendar(&self, utc: &str) -> Result<JsValue, JsValue> {
+        let instant = UtcInstant::parse(utc).map_err(invalid)?;
+        to_js(&core_chinese_calendar(&self.kernels, instant).map_err(engine_error)?)
     }
 
     /// The sky of `request`, with its cross-aspects to `natalPlanets`.

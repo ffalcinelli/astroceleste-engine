@@ -93,18 +93,63 @@ def test_chart_shape(excerpt):
 
 
 def test_out_of_range_raises(excerpt):
-    with pytest.raises(ace.EphemerisRangeError):
+    with pytest.raises(ace.EphemerisRangeError) as raised:
         excerpt.chart("2010-01-01T00:00:00Z", 41.9, 12.5)
+    assert raised.value.code == "ephemeris_out_of_range"
     assert issubclass(ace.EphemerisRangeError, ace.EngineError)
 
 
 def test_bad_input_raises_value_error(excerpt):
-    with pytest.raises(ValueError):
-        excerpt.chart("not a date", 41.9, 12.5)
-    with pytest.raises(ValueError):
-        excerpt.chart("2000-06-01T12:00:00Z", 41.9, 12.5, orb_settings={"fixed_star_orb": "wide"})
-    with pytest.raises(ace.EngineError, match="no_such.bsp"):
+    bad = [
+        lambda: excerpt.chart("not a date", 41.9, 12.5),
+        lambda: excerpt.chart("2000-02-30T12:00:00Z", 41.9, 12.5),
+        lambda: excerpt.chart("2000-06-01T12:00:00Z", 41.9, 12.5, orb_settings={"fixed_star_orb": "wide"}),
+        lambda: excerpt.chart("2000-06-01T12:00:00Z", 41.9, 12.5, orb_settings={"fixed_star_orb": "inf"}),
+        lambda: excerpt.chart("2000-06-01T12:00:00Z", 91.0, 12.5),
+        lambda: excerpt.chart("2000-06-01T12:00:00Z", float("nan"), 12.5),
+        lambda: excerpt.horary("2000-06-01T12:00:00Z", 41.9, 12.5, quesited_house=13),
+        lambda: ace.time_lords("1990-01-01T00:00:00Z", 280.0, 130.0, "1990-01-01T00:00:00Z", "3500-01-01T00:00:00Z"),
+    ]
+    for call in bad:
+        with pytest.raises(ValueError) as raised:
+            call()
+        assert raised.value.code == "invalid_input"
+
+
+def test_unreadable_kernels_are_invalid_kernel(tmp_path):
+    with pytest.raises(ace.EngineError, match="no_such.bsp") as raised:
         ace.Engine(["no_such.bsp"])
+    assert raised.value.code == "invalid_kernel"
+    garbage = tmp_path / "garbage.bsp"
+    garbage.write_bytes(b"DAF/SPK " + bytes(2048))
+    with pytest.raises(ace.EngineError) as raised:
+        ace.Engine([garbage])
+    assert raised.value.code == "invalid_kernel"
+    with pytest.raises(ace.EngineError) as raised:
+        ace.excerpt_kernel(garbage, 2451600.0, 2451700.0)
+    assert raised.value.code == "invalid_kernel"
+
+
+def test_excerpt_kernel_keeps_positions(excerpt, tmp_path):
+    small = tmp_path / "spring.bsp"
+    small.write_bytes(ace.excerpt_kernel(EXCERPT, 2451620.0, 2451720.0))
+    engine = ace.Engine([small])
+    start, end = engine.coverage
+    assert start <= 2451620.0 and 2451720.0 <= end < excerpt.coverage[1]
+    assert engine.chart("2000-04-15T12:00:00Z", 41.9, 12.5) == excerpt.chart("2000-04-15T12:00:00Z", 41.9, 12.5)
+
+
+def test_horary_judgment(excerpt):
+    chart = excerpt.horary("2000-06-01T12:00:00Z", 41.9, 12.5, quesited_house=7)
+    judgment = chart["horary_data"]["judgment"]
+    assert judgment["quesited_house"] == 7
+    assert judgment["querent"] and judgment["co_significator"] == "Moon"
+    assert excerpt.horary("2000-06-01T12:00:00Z", 41.9, 12.5)["horary_data"]["judgment"]["quesited_house"] is None
+
+
+def test_chinese_calendar_outside_coverage_is_none(excerpt):
+    # The calendar needs about 14 months of ephemeris before the moment.
+    assert excerpt.chinese_calendar("2000-06-01T12:00:00Z") is None
 
 
 def load(name):
@@ -222,6 +267,7 @@ def test_chinese_calendar_and_bazi():
     assert "chinese_calendar" not in engine.chart(birth, 37.77, -122.42)
     chart = engine.chart(birth, 37.77, -122.42, chinese_calendar=True)
     calendar = chart["chinese_calendar"]
+    assert calendar == engine.chinese_calendar(birth)
     assert calendar["solar_terms"][0]["name"] == "lichun"
     pillars = ace.bazi(calendar, birth, -122.42, -480, sex="male")
     assert [(pillars[p]["stem"], pillars[p]["branch"]) for p in ("year", "month", "day", "hour")] == [

@@ -79,10 +79,44 @@ for (const w of found.windows) {
 }
 assert.throws(() => small.elections({ utc: "2000-01-01T00:00:00Z", ...rome }, "2000-06-01T00:00:00Z"), (e) => e.code === "invalid_input");
 assert.throws(() => small.election({ utc: "2000-06-01T12:00:00Z", ...rome }, { purpose: "war" }), (e) => e.code === "invalid_input");
+// Kernels, the Chinese calendar (the excerpt is too short for one) and input checks.
+assert.deepStrictEqual(small.kernels.map((k) => k[0]), ["de440s_2000.bsp"]);
+assert.deepStrictEqual(small.kernels[0].slice(1), [...small.coverage]);
+assert.strictEqual(small.chineseCalendar("2000-06-01T12:00:00Z"), null);
+const at = { utc: "2000-06-01T12:00:00Z", ...rome };
+for (const call of [
+  () => small.chart({ ...at, latitude: 91 }),
+  () => small.chart({ ...at, utc: "2000-02-30T12:00:00Z" }),
+  () => small.chart({ ...at, orb_settings: { fixed_star_orb: "inf" } }),
+  () => small.horary({ ...at, quesited_house: 13 }),
+  () => small.chineseCalendar("2000-13-01T00:00:00Z"),
+  () => timeLords("1990-01-01T00:00:00Z", 280, 130, "1990-01-01T00:00:00Z", "3500-01-01T00:00:00Z"),
+]) {
+  assert.throws(call, (e) => e.code === "invalid_input");
+}
+assert.strictEqual(small.horary({ ...at, quesited_house: 7 }).horary_data.judgment.quesited_house, 7);
+assert.throws(() => new Engine().addKernel("garbage.bsp", new Uint8Array(2048)), (e) => e.code === "invalid_kernel");
+// No kernel needed.
+const q = degreeQualities(5.5);
+assert.deepStrictEqual([q.sign, q.degree, q.pitted, q.light], ["Aries", 6, true, "light"]);
+assert.strictEqual(degreeQualityTable().length, 12);
+const lords = timeLords("1990-01-01T12:00:00Z", 280, 130, "2000-06-01T00:00:00Z", "2001-06-01T00:00:00Z");
+assert.deepStrictEqual(lords.profections.map((p) => [p.age, p.sign, p.lord]), [[10, "Gemini", "Mercury"], [11, "Cancer", "Moon"]]);
+assert.strictEqual(lords.firdaria[0].lord, "Saturn");
+{
+  const judged = chartDignities(chart, "dorothean");
+  assert.strictEqual(judged.dignity_scheme, "dorothean");
+  assert.strictEqual(judged.conditions.length, 7);
+  assert.strictEqual(judged.conditions[0].condition.essential.lords.triplicity.length, 3);
+}
 console.log("excerpt checks: ok");
 
 const full = join(root, "kernels/de440s.bsp");
 if (!existsSync(full)) {
+  if (process.env.ASTROCELESTE_REQUIRE_KERNEL) {
+    console.error("kernels/de440s.bsp not found and ASTROCELESTE_REQUIRE_KERNEL is set");
+    process.exit(1);
+  }
   console.log("golden checks skipped: kernels/de440s.bsp not found");
   process.exit(0);
 }
@@ -101,26 +135,12 @@ for (const c of fixture("synastry.json")) {
 for (const c of fixture("derived.json")) {
   same(strip(derivedChart(natal[c.input.base], c.input.root_house)), c.output, c.input.base, 0); count++;
 }
-const q = degreeQualities(5.5);
-assert.deepStrictEqual([q.sign, q.degree, q.pitted, q.light], ["Aries", 6, true, "light"]);
-assert.strictEqual(degreeQualityTable().length, 12);
-const lords = timeLords("1990-01-01T12:00:00Z", 280, 130, "2000-06-01T00:00:00Z", "2001-06-01T00:00:00Z");
-assert.deepStrictEqual(lords.profections.map((p) => [p.age, p.sign, p.lord]), [[10, "Gemini", "Mercury"], [11, "Cancer", "Moon"]]);
-assert.strictEqual(lords.firdaria[0].lord, "Saturn");
-{
-  const lilly = natal[Object.keys(natal)[0]];
-  const own = engine.chart({ utc: "1987-05-17T14:30:00Z", latitude: 41.9, longitude: 12.5 });
-  const judged = chartDignities(own, "dorothean");
-  assert.strictEqual(judged.dignity_scheme, "dorothean");
-  assert.strictEqual(judged.conditions.length, 7);
-  assert.strictEqual(judged.conditions[0].condition.essential.lords.triplicity.length, 3);
-  assert.ok(lilly);
-}
 {
   // Bruce Lee, San Francisco, 1940-11-27 07:12 PST.
   const birth = "1940-11-27T15:12:00Z";
   assert.ok(!("chinese_calendar" in engine.chart({ utc: birth, latitude: 37.77, longitude: -122.42 })));
   const { chinese_calendar: calendar } = engine.chart({ utc: birth, latitude: 37.77, longitude: -122.42, chinese_calendar: true });
+  assert.deepStrictEqual(engine.chineseCalendar(birth), calendar);
   const pillars = bazi(calendar, birth, -122.42, -480, { sex: "male" });
   assert.deepStrictEqual(["year", "month", "day", "hour"].map((p) => `${pillars[p].stem} ${pillars[p].branch}`), ["geng chen", "ding hai", "jia xu", "wu chen"]);
   assert.strictEqual(pillars.luck.direction, "forward");
