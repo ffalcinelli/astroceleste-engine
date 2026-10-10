@@ -446,7 +446,8 @@ fn time_lords(
         ascendant_longitude,
         to_instant(start)?,
         to_instant(end)?,
-    );
+    )
+    .map_err(to_py_err)?;
     to_py(py, &lords)
 }
 

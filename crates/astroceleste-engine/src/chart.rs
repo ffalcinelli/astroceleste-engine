@@ -85,6 +85,23 @@ impl<'a> ChartRequest<'a> {
             chinese_calendar: false,
         }
     }
+
+    /// The place must be on Earth: a finite latitude within ±90° and a finite longitude
+    /// within ±360° (east or west, or 0-360 east).
+    pub(crate) fn check_place(&self) -> Result<(), EngineError> {
+        let (lat, lon) = (self.latitude, self.longitude);
+        if !(lat.is_finite() && lat.abs() <= 90.0) {
+            return Err(EngineError::InvalidInput(format!(
+                "latitude must be within ±90°, got {lat}"
+            )));
+        }
+        if !(lon.is_finite() && lon.abs() <= 360.0) {
+            return Err(EngineError::InvalidInput(format!(
+                "longitude must be within ±360°, got {lon}"
+            )));
+        }
+        Ok(())
+    }
 }
 
 /// A planet, lunar point or angle placed in the chart.
@@ -246,6 +263,7 @@ pub(crate) struct Sky {
 
 /// Placements and houses of a request (the first half of [`calculate_chart`]).
 pub(crate) fn sky(kernels: &KernelSet, req: &ChartRequest) -> Result<Sky, EngineError> {
+    req.check_place()?;
     let zodiac_type = match req.zodiac_type.trim().to_lowercase().as_str() {
         "sidereal" => "sidereal",
         _ => "tropical",

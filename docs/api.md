@@ -21,9 +21,9 @@ derived charts work on already computed charts and do not.
 
 | Field | Meaning | Default |
 |---|---|---|
-| moment | UTC instant: `UtcInstant` in Rust, `datetime` or ISO string in Python, ISO string `utc` in JS | required |
-| latitude | geographic latitude in degrees, north positive | required |
-| longitude | geographic longitude in degrees, east positive | required |
+| moment | UTC instant: `UtcInstant` in Rust, `datetime` or ISO string in Python, ISO string `utc` in JS (a real calendar date, year 0–200000) | required |
+| latitude | geographic latitude in degrees, north positive, within ±90 | required |
+| longitude | geographic longitude in degrees, east positive, within ±360 | required |
 | house system | `P` Placidus, `K` Koch, `R` Regiomontanus, `C` Campanus, `T` Topocentric (Polich-Page), `B` Alcabitius, `M` Morinus, `O` Porphyry, `E` Equal, `V` Vehlow, `W` Whole Sign (the Swiss Ephemeris letters) | `P` |
 | zodiac type | `tropical` or `sidereal` | `tropical` |
 | ayanamsa | sidereal reference, see below (ignored for tropical charts) | `galcent_0sag` |
@@ -33,7 +33,8 @@ derived charts work on already computed charts and do not.
 
 Times are always UTC. Convert civil time (with its time zone and daylight saving time) to
 UTC before calling the engine. Only the first letter of the house system is used, and
-unknown codes fall back to Placidus. Koch falls back to Porphyry inside the polar circles,
+unknown codes fall back to Placidus. A latitude or longitude that is not a finite number
+in range is an `invalid_input` error. Koch falls back to Porphyry inside the polar circles,
 where it is undefined. Morinus cusps 1 and 10 are not the Ascendant and Midheaven. Zodiac types other than `sidereal` are tropical.
 
 ```rust
@@ -243,6 +244,7 @@ overlap `start`..`end`:
   Chaldean order.
 
 Years are tropical years from the moment of birth. `diurnal` says which sequence was used.
+A span of more than 1000 years (`MAX_TIME_LORDS_YEARS`) is an `invalid_input` error.
 
 ## Chinese astrology
 
@@ -348,7 +350,7 @@ Each failure has a stable code, shared with the Astroceleste HTTP API:
 |---|---|---|---|---|
 | `ephemeris_out_of_range` | no loaded kernel covers the date | `EngineError::OutOfRange` | `EphemerisRangeError` | `Error` with `code` |
 | `ephemeris_error` | a kernel could not be read or evaluated | `EngineError::Ephemeris` | `EngineError` | `Error` with `code` |
-| `invalid_input` | malformed request (bad date, non-numeric orb, …) | `EngineError::InvalidInput` | `ValueError` | `Error` with `code` |
+| `invalid_input` | malformed request: a date that does not exist, a place off the Earth (latitude beyond ±90°, longitude beyond ±360°, NaN), a non-numeric, NaN or infinite orb, a quesited house outside 1–12, a span too long, … | `EngineError::InvalidInput` | `ValueError` | `Error` with `code` |
 | `invalid_kernel` | a kernel file is not a valid SPK file (JS `addKernel`) | `SpkError` when loading | `EngineError` | `Error` with `code` |
 
 In Rust, `EngineError::code()` returns the code. Dates outside the loaded kernels are

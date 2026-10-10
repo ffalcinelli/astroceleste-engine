@@ -281,13 +281,16 @@ pub fn time_lords(
     end: &str,
 ) -> Result<JsValue, JsValue> {
     let parse = |s: &str| UtcInstant::parse(s).map_err(invalid);
-    to_js(&core_time_lords(
-        parse(birth)?,
-        sun_longitude,
-        ascendant_longitude,
-        parse(start)?,
-        parse(end)?,
-    ))
+    to_js(
+        &core_time_lords(
+            parse(birth)?,
+            sun_longitude,
+            ascendant_longitude,
+            parse(start)?,
+            parse(end)?,
+        )
+        .map_err(engine_error)?,
+    )
 }
 
 /// A computed chart's dignities (condition, sect, receptions) judged again under `scheme`

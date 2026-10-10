@@ -351,6 +351,11 @@ pub fn calculate_horary_chart(
     req: &ChartRequest,
     quesited_house: Option<u8>,
 ) -> Result<HoraryChart, EngineError> {
+    if let Some(house) = quesited_house.filter(|h| !(1..=12).contains(h)) {
+        return Err(EngineError::InvalidInput(format!(
+            "quesited_house must be 1-12, got {house}"
+        )));
+    }
     let mut chart = chart_without_hours(kernels, req)?;
     let hours = planetary_hours(kernels, req.instant, req.latitude, req.longitude);
     chart.planetary_hours = Some(hours.clone());

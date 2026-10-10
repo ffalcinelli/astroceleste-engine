@@ -109,7 +109,8 @@ pub fn longitude_to_zodiac(lon: f64) -> ZodiacPosition {
         }
     }
     ZodiacPosition {
-        sign: ZODIAC_SIGNS[sign_index],
+        // `rem` gives 360.0 for a tiny negative longitude: that is Aries 0°.
+        sign: ZODIAC_SIGNS[sign_index % 12],
         degree,
         minute,
     }

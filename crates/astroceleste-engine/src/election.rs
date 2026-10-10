@@ -1272,6 +1272,7 @@ pub fn search_elections(
     end: UtcInstant,
     criteria: &ElectionCriteria,
 ) -> Result<ElectionSearch, EngineError> {
+    req.check_place()?;
     let resolved = criteria.resolve()?;
     let start = req.instant;
     let span_days = end.seconds_since(&start) / 86_400.0;
