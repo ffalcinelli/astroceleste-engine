@@ -52,48 +52,20 @@ pub struct Planets {
 }
 
 /// All chart bodies at UT1 Julian date `jd`, shifted by `shift` degrees (the ayanamsa for
-/// sidereal charts, 0 for tropical).
-pub fn calculate_planets(kernels: &KernelSet, jd: f64, shift: f64) -> Result<Planets, EngineError> {
-    Ok(planets_and_sidereal_time(kernels, jd, shift)?.0)
-}
-
-/// [`calculate_planets`], with the Greenwich apparent sidereal time (hours) at `jd`.
+/// sidereal charts, 0 for tropical), with the Greenwich apparent sidereal time (hours)
+/// at `jd`.
 pub fn planets_and_sidereal_time(
     kernels: &KernelSet,
     jd: f64,
     shift: f64,
 ) -> Result<(Planets, f64), EngineError> {
-    let t = Time::from_ut1(jd);
-    // One hour later, for the apparent speed and the retrograde flag.
-    let t_plus = Time::from_ut1(t.ut1() + 1.0 / 24.0);
-
-    // Both ends of the speed sample must be covered by the same kernel.
-    let mut kernel = require_kernel(kernels, jd)?;
-    let plus_kernel = kernels.for_jd(t_plus.ut1());
-    if !plus_kernel.is_some_and(|k| std::ptr::eq(k, kernel)) {
-        kernel = require_kernel(kernels, t_plus.ut1())?;
-    }
-
-    let orientation = Orientation::at(&t);
-    let orientation_plus = Orientation::at(&t_plus);
+    let sample = SpeedSample::at(kernels, jd)?;
     let mut bodies = Vec::with_capacity(14);
 
     for (name, code, symbol, can_retrograde) in TARGETS {
-        let observed = (|| {
-            let a = observe(kernel, code, &t)?;
-            let app = apparent(kernel, &a, &t)?;
-            let a_plus = observe(kernel, code, &t_plus)?;
-            let app_plus = apparent(kernel, &a_plus, &t_plus)?;
-            Ok::<_, EngineError>((
-                ecliptic_latlon(&orientation, &app),
-                ecliptic_latlon(&orientation_plus, &app_plus).1,
-            ))
-        })();
-        let Ok(((lat, lon, dist), lon_plus)) = observed else {
+        let Ok((lat, lon, dist, speed)) = sample.observe(code) else {
             continue;
         };
-        let d_lon = pyfloat::rem(lon_plus - lon + 180.0, 360.0) - 180.0;
-        let speed = d_lon * 24.0;
         bodies.push(BodyPosition {
             name,
             symbol,
@@ -163,5 +135,60 @@ pub fn planets_and_sidereal_time(
         is_retrograde: false,
     });
 
-    Ok((Planets { bodies }, orientation.gast_hours))
+    Ok((Planets { bodies }, sample.orientation.gast_hours))
+}
+
+/// The apparent speed (degrees per day) of the planet `name` at UT1 Julian date `jd`,
+/// exactly as [`planets_and_sidereal_time`] gives it, without computing the other bodies.
+pub fn planet_speed(kernels: &KernelSet, jd: f64, name: &str) -> Result<f64, EngineError> {
+    let (.., code, _, _) = TARGETS
+        .iter()
+        .find(|(n, ..)| *n == name)
+        .ok_or_else(|| EngineError::InvalidInput(format!("not a planet: {name}")))?;
+    Ok(SpeedSample::at(kernels, jd)?.observe(*code)?.3)
+}
+
+/// An instant and the instant an hour later (for the apparent speed and the retrograde
+/// flag), with the kernel and the orientations of both.
+struct SpeedSample<'k> {
+    kernel: &'k Kernel,
+    t: Time,
+    t_plus: Time,
+    orientation: Orientation,
+    orientation_plus: Orientation,
+}
+
+impl<'k> SpeedSample<'k> {
+    fn at(kernels: &'k KernelSet, jd: f64) -> Result<Self, EngineError> {
+        let t = Time::from_ut1(jd);
+        let t_plus = Time::from_ut1(t.ut1() + 1.0 / 24.0);
+
+        // Both ends of the speed sample must be covered by the same kernel.
+        let mut kernel = require_kernel(kernels, jd)?;
+        let plus_kernel = kernels.for_jd(t_plus.ut1());
+        if !plus_kernel.is_some_and(|k| std::ptr::eq(k, kernel)) {
+            kernel = require_kernel(kernels, t_plus.ut1())?;
+        }
+        Ok(SpeedSample {
+            kernel,
+            orientation: Orientation::at(&t),
+            orientation_plus: Orientation::at(&t_plus),
+            t,
+            t_plus,
+        })
+    }
+
+    /// Ecliptic latitude, longitude (degrees, tropical), distance (au) and apparent speed
+    /// in longitude (degrees per day) of the body with NAIF code `code`.
+    fn observe(&self, code: i32) -> Result<(f64, f64, f64, f64), EngineError> {
+        let (kernel, t, t_plus) = (self.kernel, &self.t, &self.t_plus);
+        let a = observe(kernel, code, t)?;
+        let app = apparent(kernel, &a, t)?;
+        let a_plus = observe(kernel, code, t_plus)?;
+        let app_plus = apparent(kernel, &a_plus, t_plus)?;
+        let (lat, lon, dist) = ecliptic_latlon(&self.orientation, &app);
+        let lon_plus = ecliptic_latlon(&self.orientation_plus, &app_plus).1;
+        let d_lon = pyfloat::wrap180(lon_plus - lon);
+        Ok((lat, lon, dist, d_lon * 24.0))
+    }
 }

@@ -141,6 +141,17 @@ pub fn py_float(value: &Value) -> Result<f64, EngineError> {
     }
 }
 
+/// `value`, or an error naming `what` when it is NaN or infinite.
+pub(crate) fn finite(value: f64, what: &str) -> Result<f64, EngineError> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(EngineError::InvalidInput(format!(
+            "{what} must be finite, got {value}"
+        )))
+    }
+}
+
 /// Orb settings merged over the defaults, as the orchestrator and cross-aspects do:
 /// only `method`, `fixed_star_orb`, `aspect_orbs` and `planet_orbs` are taken from the
 /// caller, the orb tables key by key. Values are kept as given (they are echoed back in
@@ -168,7 +179,7 @@ impl OrbSettings {
             merged.insert("method".into(), method.clone());
         }
         let star_orb = match custom.get("fixed_star_orb") {
-            Some(v) => py_float(v)?,
+            Some(v) => finite(py_float(v)?, "fixed_star_orb")?,
             None => 1.5,
         };
         merged.insert("fixed_star_orb".into(), json!(star_orb));
@@ -178,6 +189,11 @@ impl OrbSettings {
                 None => {}
                 Some(Value::Object(given)) => {
                     for (k, v) in given {
+                        // Non-numeric values fail when used, as in the reference; NaN
+                        // and infinite orbs would silently drop or match every aspect.
+                        if let Ok(orb) = py_float(v) {
+                            finite(orb, &format!("{key}.{k}"))?;
+                        }
                         table.insert(k.clone(), v.clone());
                     }
                 }
@@ -317,15 +333,6 @@ pub struct Point<'a> {
     pub longitude: f64,
 }
 
-fn separation(a: f64, b: f64) -> f64 {
-    let diff = pyfloat::rem((a - b).abs(), 360.0);
-    if diff > 180.0 {
-        360.0 - diff
-    } else {
-        diff
-    }
-}
-
 fn is_node_pair(a: &str, b: &str) -> bool {
     (a == "North Node" && b == "South Node") || (a == "South Node" && b == "North Node")
 }
@@ -355,7 +362,7 @@ pub fn natal_aspects(points: &[Point], orbs: &OrbSettings) -> Result<Vec<Aspect>
             if is_node_pair(p1.name, p2.name) {
                 continue;
             }
-            let diff = separation(p1.longitude, p2.longitude);
+            let diff = pyfloat::separation(p1.longitude, p2.longitude);
             if let Some((rule, orb, max_orb)) = find_aspect(orbs, p1.name, p2.name, diff)? {
                 out.push(Aspect {
                     body1: p1.name.to_string(),
@@ -387,7 +394,7 @@ pub fn cross_aspects(
             if is_node_pair(o.name, b.name) {
                 continue;
             }
-            let diff = separation(o.longitude, b.longitude);
+            let diff = pyfloat::separation(o.longitude, b.longitude);
             if let Some((rule, orb, max_orb)) = find_aspect(&orbs, o.name, b.name, diff)? {
                 out.push(CrossAspect {
                     body1: o.name.to_string(),
@@ -422,6 +429,7 @@ pub fn points_from_json(planets: &Value) -> Result<Vec<Point<'_>>, EngineError> 
             let longitude = p.get("ecliptic_longitude").map(py_float).ok_or_else(|| {
                 EngineError::InvalidInput(format!("{name} has no ecliptic_longitude"))
             })??;
+            let longitude = finite(longitude, &format!("{name}'s ecliptic_longitude"))?;
             Ok(Point { name, longitude })
         })
         .collect()

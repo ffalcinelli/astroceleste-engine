@@ -56,10 +56,7 @@ pub fn fixed_stars(
         }
         let mut conjunct = false;
         for body in points {
-            let mut diff = pyfloat::rem((lon - body.longitude).abs(), 360.0);
-            if diff > 180.0 {
-                diff = 360.0 - diff;
-            }
+            let diff = pyfloat::separation(lon, body.longitude);
             let orb = (diff - 0.0).abs();
             if orb <= max_orb {
                 conjunct = true;

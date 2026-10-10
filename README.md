@@ -42,7 +42,9 @@ Charts serialize to the same JSON as the Astroceleste API. Other entry points:
 `calculate_horary_chart`, `calculate_transit_chart`, `calculate_synastry`,
 `calculate_derived_chart`, and for electional astrology `calculate_election_chart` and
 `search_elections` (the best moments over a span of time), `degree_qualities` (William
-Lilly's qualities of the zodiac degrees, no kernel needed), and for Chinese astrology
+Lilly's qualities of the zodiac degrees), `chart_dignities` (a stored chart judged again
+under another dignity scheme) and `time_lords` (profections and firdaria), all three with
+no kernel needed, and for Chinese astrology
 `chinese_calendar` (solar terms, lunar and leap months), `bazi` (the Four Pillars) and
 `zi_wei` (Zi Wei Dou Shu), both with no kernel needed (see [Chinese astrology](https://github.com/ffalcinelli/astroceleste-engine/blob/main/docs/chinese.md)). In the browser or on mobile, load the kernel from memory with
 `Spk::from_bytes`.
@@ -50,8 +52,10 @@ Lilly's qualities of the zodiac degrees, no kernel needed), and for Chinese astr
 ## Bindings
 
 - **Python** (`pip install astroceleste-engine`, CPython ≥ 3.12): `Engine([kernel paths])`
-  with `.chart()`, `.horary()`, `.transit()`, `.election()`, `.elections()`, plus `synastry()`, `derived_chart()`, `degree_qualities()`, `bazi()` and `zi_wei()`,
-  returning plain dicts. See [crates/astroceleste-engine-py](https://github.com/ffalcinelli/astroceleste-engine/tree/main/crates/astroceleste-engine-py).
+  with `.chart()`, `.horary()`, `.transit()`, `.election()`, `.elections()` and
+  `.chinese_calendar()`, plus `synastry()`, `derived_chart()`, `degree_qualities()`,
+  `degree_quality_table()`, `chart_dignities()`, `time_lords()`, `bazi()`, `zi_wei()`,
+  `julian_day()` and `excerpt_kernel()`, returning plain dicts. See [crates/astroceleste-engine-py](https://github.com/ffalcinelli/astroceleste-engine/tree/main/crates/astroceleste-engine-py).
 - **JavaScript / WebAssembly** (`npm install astroceleste-engine`): the same API over
   kernels loaded from memory, for browsers and Node. See
   [crates/astroceleste-engine-wasm](https://github.com/ffalcinelli/astroceleste-engine/tree/main/crates/astroceleste-engine-wasm).

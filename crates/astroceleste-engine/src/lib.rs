@@ -140,6 +140,8 @@ mod planets;
 mod pyfloat;
 mod symbolic;
 mod temperament;
+#[cfg(test)]
+mod test_kernel;
 #[doc(hidden)] // exposed for the reduction tests; not part of the API
 pub mod time;
 mod time_lords;
@@ -181,4 +183,4 @@ pub use judgment::{Collection, Judgment, Perfection, Prohibition, Refranation, T
 pub use lots::Lot;
 pub use lunar::LunarStatus;
 pub use temperament::{Factor, Qualities, Scores, Temperament};
-pub use time_lords::{time_lords, Firdaria, Period, Profection, TimeLords};
+pub use time_lords::{time_lords, Firdaria, Period, Profection, TimeLords, MAX_TIME_LORDS_YEARS};

@@ -254,19 +254,8 @@ pub(crate) fn lunar_date_of(day: i64) -> Option<(i32, u8, bool, u8)> {
 mod tests {
     use super::*;
     use crate::chinese::calendar::lunar_years;
-    use crate::ephemeris::{Kernel, KernelSet, Spk};
 
-    fn kernels() -> Option<KernelSet> {
-        let path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../kernels/de440s.bsp");
-        if !path.exists() {
-            eprintln!("skipping: {} not found", path.display());
-            return None;
-        }
-        let mut set = KernelSet::new();
-        set.push(Kernel::new("de440s.bsp", Spk::open(path).unwrap()).unwrap());
-        Some(set)
-    }
+    use crate::test_kernel::full_kernel as kernels;
 
     #[test]
     #[ignore = "generates the table: cargo test --release print_table -- --ignored --nocapture"]

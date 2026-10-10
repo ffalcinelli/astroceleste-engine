@@ -79,10 +79,44 @@ impl From<std::io::Error> for SpkError {
 /// demand from disk (multi-GB kernels such as de441 on the server).
 enum Storage {
     Memory(Vec<u8>),
-    File(Mutex<File>),
+    File(Mutex<FileStorage>),
+}
+
+/// Reads of a file-backed kernel kept for reuse: a chart evaluates the same few dozen
+/// Chebyshev records hundreds of times (most of them in the sunrise search), and each
+/// read from the file costs a seek and a read.
+const CACHED_READS: usize = 64;
+
+struct FileStorage {
+    file: File,
+    /// (byte offset, bytes) of recent reads.
+    cache: Vec<(usize, Box<[u8]>)>,
+    /// The cache slot the next miss replaces, round robin.
+    next: usize,
 }
 
 impl Storage {
+    fn file(file: File) -> Self {
+        Storage::File(Mutex::new(FileStorage {
+            file,
+            cache: Vec::with_capacity(CACHED_READS),
+            next: 0,
+        }))
+    }
+
+    /// Size of the kernel in bytes.
+    fn len(&self) -> Result<u64, SpkError> {
+        match self {
+            Storage::Memory(data) => Ok(data.len() as u64),
+            Storage::File(file) => Ok(file
+                .lock()
+                .map_err(|_| SpkError::Io("poisoned lock".into()))?
+                .file
+                .metadata()?
+                .len()),
+        }
+    }
+
     fn read_bytes(&self, offset: usize, buf: &mut [u8]) -> Result<(), SpkError> {
         match self {
             Storage::Memory(data) => {
@@ -93,12 +127,27 @@ impl Storage {
                 buf.copy_from_slice(&data[offset..end]);
                 Ok(())
             }
-            Storage::File(file) => {
-                let mut file = file
+            Storage::File(storage) => {
+                let mut storage = storage
                     .lock()
                     .map_err(|_| SpkError::Io("poisoned lock".into()))?;
+                let FileStorage { file, cache, next } = &mut *storage;
+                if let Some((_, bytes)) = cache
+                    .iter()
+                    .find(|(at, bytes)| *at == offset && bytes.len() == buf.len())
+                {
+                    buf.copy_from_slice(bytes);
+                    return Ok(());
+                }
                 file.seek(SeekFrom::Start(offset as u64))?;
                 file.read_exact(buf)?;
+                let entry = (offset, Box::from(&*buf));
+                if cache.len() < CACHED_READS {
+                    cache.push(entry);
+                } else {
+                    cache[*next] = entry;
+                    *next = (*next + 1) % CACHED_READS;
+                }
                 Ok(())
             }
         }
@@ -149,6 +198,9 @@ impl Segment {
 /// A JPL SPK (DAF) kernel, read from a file or from memory.
 pub struct Spk {
     storage: Storage,
+    /// Size of the kernel in 8-byte words: every read is checked against it before its
+    /// buffer is allocated, so a corrupt header cannot request gigabytes.
+    words: usize,
     little_endian: bool,
     segments: Vec<Segment>,
 }
@@ -172,7 +224,7 @@ impl Spk {
 
     /// Open a kernel on disk; segment data is read on demand, so size is not a concern.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, SpkError> {
-        Self::load(Storage::File(Mutex::new(File::open(path)?)))
+        Self::load(Storage::file(File::open(path)?))
     }
 
     /// The kernel's segments, in file order.
@@ -192,8 +244,10 @@ impl Spk {
             // Pre-1995 files lack LOCFMT: infer from ND, which is always 2 for SPK.
             _ => i32::from_le_bytes(header[8..12].try_into().unwrap()) == 2,
         };
+        let words = usize::try_from(storage.len()? / WORD_BYTES as u64).unwrap_or(usize::MAX);
         let mut spk = Spk {
             storage,
+            words,
             little_endian,
             segments: Vec::new(),
         };
@@ -204,22 +258,26 @@ impl Spk {
         }
         let summary_words = nd + ni.div_ceil(2);
 
-        let mut record_number = spk.int_at(&header, 76) as usize;
+        let mut record_number = spk.address_at(&header, 76)?;
         let mut visited = 0;
         while record_number != 0 {
             visited += 1;
             if visited > 100_000 {
                 return Err(SpkError::Format("summary record chain does not end".into()));
             }
+            let offset = (record_number - 1)
+                .checked_mul(RECORD_BYTES)
+                .ok_or_else(|| SpkError::Format("summary record out of range".into()))?;
             let mut record = [0u8; RECORD_BYTES];
-            spk.storage
-                .read_bytes((record_number - 1) * RECORD_BYTES, &mut record)?;
-            let next = spk.double_at(&record, 0) as usize;
+            spk.storage.read_bytes(offset, &mut record)?;
+            let next = spk.double_at(&record, 0);
+            if !(next >= 0.0 && next.fract() == 0.0 && next <= i32::MAX as f64) {
+                return Err(SpkError::Format("bad next summary record".into()));
+            }
             let count = spk.double_at(&record, 16) as usize;
             // The name record follows its summary record.
             let mut names = [0u8; RECORD_BYTES];
-            spk.storage
-                .read_bytes(record_number * RECORD_BYTES, &mut names)?;
+            spk.storage.read_bytes(offset + RECORD_BYTES, &mut names)?;
             let name_chars = summary_words * WORD_BYTES;
             for i in 0..count {
                 let base = 24 + i * summary_words * WORD_BYTES;
@@ -231,7 +289,7 @@ impl Spk {
                 segment.name = String::from_utf8_lossy(raw).trim_end().to_string();
                 spk.segments.push(segment);
             }
-            record_number = next;
+            record_number = next as usize;
         }
         Ok(spk)
     }
@@ -244,8 +302,8 @@ impl Spk {
         let center = self.int_at(record, ints + 4);
         let frame = self.int_at(record, ints + 8);
         let data_type = self.int_at(record, ints + 12);
-        let start_word = self.int_at(record, ints + 16) as usize;
-        let end_word = self.int_at(record, ints + 20) as usize;
+        let start_word = self.address_at(record, ints + 16)?;
+        let end_word = self.address_at(record, ints + 20)?;
 
         let mut segment = Segment {
             name: String::new(),
@@ -262,19 +320,33 @@ impl Spk {
             record_count: 0,
         };
         if data_type == 2 || data_type == 3 {
-            if end_word < start_word.max(4) {
+            let bad =
+                || SpkError::Format(format!("bad Chebyshev directory for {center} -> {target}"));
+            if end_word < start_word.max(4) || end_word > self.words {
                 return Err(SpkError::Format(format!(
                     "bad word range for {center} -> {target}"
                 )));
             }
             let dir = self.read_words(end_word - 3, 4)?;
+            let count = |x: f64| {
+                (x >= 1.0 && x.fract() == 0.0 && x <= self.words as f64)
+                    .then_some(x as usize)
+                    .ok_or_else(bad)
+            };
             segment.init = dir[0];
             segment.interval = dir[1];
-            segment.record_size = dir[2] as usize;
-            segment.record_count = dir[3] as usize;
+            segment.record_size = count(dir[2])?;
+            segment.record_count = count(dir[3])?;
+            // The records and the directory must fit in the segment's words.
+            let data_words = segment
+                .record_size
+                .checked_mul(segment.record_count)
+                .and_then(|w| w.checked_add(4))
+                .ok_or_else(bad)?;
             let coefficients = segment.record_size.saturating_sub(2);
-            if segment.interval <= 0.0
-                || segment.record_count == 0
+            if !segment.init.is_finite()
+                || !(segment.interval > 0.0 && segment.interval.is_finite())
+                || data_words > end_word - start_word + 1
                 || coefficients == 0
                 || coefficients % segment.components() != 0
             {
@@ -317,9 +389,10 @@ impl Spk {
         self.check_type(segment)?;
         let index = (((et - segment.init) / segment.interval).floor().max(0.0) as usize)
             .min(segment.record_count - 1);
-        let words = self.record(segment, index)?;
-        let (mid, radius) = (words[0], words[1]);
-        Ok(self.evaluate(segment, &words, (et - mid) / radius))
+        self.with_record(segment, index, |words| {
+            let (mid, radius) = (words[0], words[1]);
+            self.evaluate(segment, words, (et - mid) / radius)
+        })
     }
 
     /// Evaluate one segment at a TDB Julian date given as `whole + fraction`, with the
@@ -354,8 +427,9 @@ impl Spk {
         if index < 0.0 || index >= count {
             return Err(out_of_range);
         }
-        let words = self.record(segment, index as usize)?;
-        Ok(self.evaluate(segment, &words, 2.0 * offset / intlen - 1.0))
+        self.with_record(segment, index as usize, |words| {
+            self.evaluate(segment, words, 2.0 * offset / intlen - 1.0)
+        })
     }
 
     fn check_type(&self, segment: &Segment) -> Result<(), SpkError> {
@@ -366,11 +440,31 @@ impl Spk {
         }
     }
 
-    fn record(&self, segment: &Segment, index: usize) -> Result<Vec<f64>, SpkError> {
-        self.read_words(
+    /// `f` applied to the words of record `index` of `segment`, decoded into a stack
+    /// buffer (records of the planetary ephemerides are a few dozen words).
+    fn with_record<R>(
+        &self,
+        segment: &Segment,
+        index: usize,
+        f: impl FnOnce(&[f64]) -> R,
+    ) -> Result<R, SpkError> {
+        const STACK_WORDS: usize = 128;
+        let (first, count) = (
             segment.start_word + index * segment.record_size,
             segment.record_size,
-        )
+        );
+        if count > STACK_WORDS {
+            return Ok(f(&self.read_words(first, count)?));
+        }
+        self.check_words(first, count)?;
+        let mut bytes = [0u8; STACK_WORDS * WORD_BYTES];
+        let bytes = &mut bytes[..count * WORD_BYTES];
+        self.storage.read_bytes((first - 1) * WORD_BYTES, bytes)?;
+        let mut words = [0.0; STACK_WORDS];
+        for (word, raw) in words.iter_mut().zip(bytes.chunks_exact(WORD_BYTES)) {
+            *word = self.to_f64(raw.try_into().unwrap());
+        }
+        Ok(f(&words[..count]))
     }
 
     /// Position and velocity from one Chebyshev record at normalized time `s`.
@@ -524,10 +618,22 @@ impl Spk {
         Ok(out)
     }
 
-    fn read_words(&self, first_word: usize, count: usize) -> Result<Vec<f64>, SpkError> {
+    /// Words `first_word..first_word + count` (1-based) must lie inside the file.
+    fn check_words(&self, first_word: usize, count: usize) -> Result<(), SpkError> {
         if first_word == 0 {
             return Err(SpkError::Format("word address 0".into()));
         }
+        if first_word
+            .checked_add(count)
+            .is_none_or(|end| end - 1 > self.words)
+        {
+            return Err(SpkError::Format("read past end of file".into()));
+        }
+        Ok(())
+    }
+
+    fn read_words(&self, first_word: usize, count: usize) -> Result<Vec<f64>, SpkError> {
+        self.check_words(first_word, count)?;
         let mut buf = vec![0u8; count * WORD_BYTES];
         self.storage
             .read_bytes((first_word - 1) * WORD_BYTES, &mut buf)?;
@@ -535,6 +641,12 @@ impl Spk {
             .chunks_exact(WORD_BYTES)
             .map(|b| self.to_f64(b.try_into().unwrap()))
             .collect())
+    }
+
+    /// A DAF record or word number (1-based; 0 ends a record chain).
+    fn address_at(&self, bytes: &[u8], offset: usize) -> Result<usize, SpkError> {
+        let n = self.int_at(bytes, offset);
+        usize::try_from(n).map_err(|_| SpkError::Format(format!("negative address {n}")))
     }
 
     fn double_at(&self, bytes: &[u8], offset: usize) -> f64 {

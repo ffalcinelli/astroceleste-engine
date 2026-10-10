@@ -5,7 +5,9 @@
 
 use serde::Serialize;
 
+use crate::aspects::finite;
 use crate::dignities::{is_diurnal, traditional_ruler, SEVEN, SIGNS};
+use crate::error::EngineError;
 use crate::instant::UtcInstant;
 use crate::pyfloat;
 
@@ -97,15 +99,21 @@ fn at(birth: UtcInstant, years: f64) -> UtcInstant {
     birth.plus_days(years * YEAR_DAYS)
 }
 
+/// Longest span [`time_lords`] covers, in years.
+pub const MAX_TIME_LORDS_YEARS: f64 = 1000.0;
+
 /// Annual profections and firdaria from `birth` (with the natal Sun's and Ascendant's
-/// longitudes), for the years that overlap `start`..`end`.
+/// longitudes), for the years that overlap `start`..`end` (at most
+/// [`MAX_TIME_LORDS_YEARS`] after the birth or the start, whichever is later).
 pub fn time_lords(
     birth: UtcInstant,
     sun_longitude: f64,
     ascendant_longitude: f64,
     start: UtcInstant,
     end: UtcInstant,
-) -> TimeLords {
+) -> Result<TimeLords, EngineError> {
+    finite(sun_longitude, "sun_longitude")?;
+    finite(ascendant_longitude, "ascendant_longitude")?;
     let (start, end) = if end < start {
         (end, start)
     } else {
@@ -113,6 +121,11 @@ pub fn time_lords(
     };
     let start = start.max(birth);
     let end = end.max(birth);
+    if end.seconds_since(&start) / 86_400.0 / YEAR_DAYS > MAX_TIME_LORDS_YEARS {
+        return Err(EngineError::InvalidInput(format!(
+            "time_lords covers at most {MAX_TIME_LORDS_YEARS} years"
+        )));
+    }
     let diurnal = is_diurnal(sun_longitude, ascendant_longitude);
     let age_at = |t: UtcInstant| t.seconds_since(&birth) / 86_400.0 / YEAR_DAYS;
 
@@ -178,11 +191,11 @@ pub fn time_lords(
         cycle_start += FIRDARIA_CYCLE;
     }
 
-    TimeLords {
+    Ok(TimeLords {
         diurnal,
         profections,
         firdaria,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -204,7 +217,7 @@ mod tests {
     fn profections_move_one_sign_a_year() {
         // Ascendant at 10° Leo: age 0 Leo (Sun), age 1 Virgo (Mercury), age 12 Leo again.
         let birth = utc("1990-01-01T12:00:00Z");
-        let lords = time_lords(birth, 280.0, 130.0, birth, utc("2003-01-01T00:00:00Z"));
+        let lords = time_lords(birth, 280.0, 130.0, birth, utc("2003-01-01T00:00:00Z")).unwrap();
         let p = &lords.profections;
         assert_eq!(p[0].sign, "Leo");
         assert_eq!(p[0].lord, "Sun");
@@ -220,7 +233,7 @@ mod tests {
     fn a_day_birth_starts_with_the_sun() {
         // Sun at 0° Aries and Ascendant at 0° Cancer: the Sun culminates, a day birth.
         let birth = utc("2000-03-20T12:00:00Z");
-        let lords = time_lords(birth, 0.0, 90.0, birth, birth.plus_days(1.0));
+        let lords = time_lords(birth, 0.0, 90.0, birth, birth.plus_days(1.0)).unwrap();
         assert!(lords.diurnal);
         let first = &lords.firdaria[0];
         assert_eq!(first.lord, "Sun");
@@ -236,7 +249,7 @@ mod tests {
     fn a_night_birth_starts_with_the_moon_and_the_nodes_have_no_sub_periods() {
         let birth = utc("2000-03-20T00:00:00Z");
         // Ascendant at 0° Capricorn puts the Sun at 0° Aries below the horizon.
-        let lords = time_lords(birth, 0.0, 270.0, birth, at(birth, 74.0));
+        let lords = time_lords(birth, 0.0, 270.0, birth, at(birth, 74.0)).unwrap();
         assert!(!lords.diurnal);
         let names: Vec<&str> = lords.firdaria.iter().map(|f| f.lord).collect();
         assert_eq!(
@@ -261,7 +274,7 @@ mod tests {
     #[test]
     fn a_span_late_in_life_wraps_into_a_new_round() {
         let birth = utc("1900-01-01T12:00:00Z");
-        let lords = time_lords(birth, 280.0, 130.0, at(birth, 76.0), at(birth, 77.0));
+        let lords = time_lords(birth, 280.0, 130.0, at(birth, 76.0), at(birth, 77.0)).unwrap();
         // Night birth (the Sun below a Leo Ascendant): the round starts again with the Moon.
         assert_eq!(lords.firdaria.len(), 1);
         assert_eq!(lords.firdaria[0].lord, "Moon");

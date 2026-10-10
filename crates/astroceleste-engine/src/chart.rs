@@ -14,11 +14,11 @@ use crate::ephemeris::KernelSet;
 use crate::error::EngineError;
 use crate::fixed_stars::{fixed_stars, FixedStarPosition};
 use crate::horary::{planetary_hours, PlanetaryHours};
-use crate::houses::{calculate_houses, HouseSystem, Houses};
+use crate::houses::{houses_at_sidereal_time, HouseSystem, Houses};
 use crate::instant::UtcInstant;
 use crate::lots::{arabic_parts, Lot};
 use crate::lunar::{lunar_status, LunarStatus};
-use crate::planets::calculate_planets;
+use crate::planets::planets_and_sidereal_time;
 use crate::symbolic::symbolic_degree_number;
 use crate::temperament::{temperament, Temperament};
 use crate::zodiac::{
@@ -84,6 +84,23 @@ impl<'a> ChartRequest<'a> {
             dignity_scheme: "lilly",
             chinese_calendar: false,
         }
+    }
+
+    /// The place must be on Earth: a finite latitude within ±90° and a finite longitude
+    /// within ±360° (east or west, or 0-360 east).
+    pub(crate) fn check_place(&self) -> Result<(), EngineError> {
+        let (lat, lon) = (self.latitude, self.longitude);
+        if !(lat.is_finite() && lat.abs() <= 90.0) {
+            return Err(EngineError::InvalidInput(format!(
+                "latitude must be within ±90°, got {lat}"
+            )));
+        }
+        if !(lon.is_finite() && lon.abs() <= 360.0) {
+            return Err(EngineError::InvalidInput(format!(
+                "longitude must be within ±360°, got {lon}"
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -197,7 +214,7 @@ fn empty_object_if_none<S: Serializer>(v: &Option<LunarStatus>, s: S) -> Result<
 
 impl Chart {
     /// The chart's planets and angles as named ecliptic points.
-    pub fn points(&self) -> Vec<Point<'_>> {
+    pub(crate) fn points(&self) -> Vec<Point<'_>> {
         self.planets
             .iter()
             .map(|p| Point {
@@ -246,6 +263,7 @@ pub(crate) struct Sky {
 
 /// Placements and houses of a request (the first half of [`calculate_chart`]).
 pub(crate) fn sky(kernels: &KernelSet, req: &ChartRequest) -> Result<Sky, EngineError> {
+    req.check_place()?;
     let zodiac_type = match req.zodiac_type.trim().to_lowercase().as_str() {
         "sidereal" => "sidereal",
         _ => "tropical",
@@ -257,9 +275,11 @@ pub(crate) fn sky(kernels: &KernelSet, req: &ChartRequest) -> Result<Sky, Engine
     let info = ayanamsa_info(jd, ayanamsa_code);
     let shift = if is_sidereal { info.value } else { 0.0 };
 
-    let engine = calculate_planets(kernels, jd, shift)?;
-    let houses = calculate_houses(
+    // The houses reuse the planets' sidereal time (the same instant): one nutation.
+    let (engine, gast_hours) = planets_and_sidereal_time(kernels, jd, shift)?;
+    let houses = houses_at_sidereal_time(
         jd,
+        gast_hours,
         req.latitude,
         req.longitude,
         HouseSystem::from_code(req.house_system),

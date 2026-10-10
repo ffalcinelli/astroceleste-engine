@@ -7,6 +7,9 @@ use crate::time::julian_day;
 
 const US_PER_SECOND: i64 = 1_000_000;
 const US_PER_DAY: i64 = 86_400 * US_PER_SECOND;
+/// Latest year [`UtcInstant::parse`] accepts: past every JPL kernel (DE441 ends in 17191)
+/// and far from overflowing the microsecond count.
+const MAX_YEAR: i32 = 200_000;
 
 /// A UTC instant, as microseconds since 1970-01-01T00:00:00Z.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -23,6 +26,15 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let doy = (153 * mp + 2) / 5 + day - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     era * 146_097 + doe - 719_468
+}
+
+fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
 }
 
 fn civil_from_days(z: i64) -> (i64, i64, i64) {
@@ -66,7 +78,8 @@ impl UtcInstant {
         self.micros
     }
 
-    /// From proleptic-Gregorian calendar fields (UTC).
+    /// From proleptic-Gregorian calendar fields (UTC). Out-of-range fields roll over
+    /// (day 32 is the next month's first); the result saturates instead of overflowing.
     pub fn from_civil(
         year: i32,
         month: u32,
@@ -79,7 +92,9 @@ impl UtcInstant {
         let days = days_from_civil(year as i64, month as i64, day as i64);
         let secs = hour as i64 * 3600 + minute as i64 * 60 + second as i64;
         UtcInstant {
-            micros: days * US_PER_DAY + secs * US_PER_SECOND + microsecond as i64,
+            micros: days
+                .saturating_mul(US_PER_DAY)
+                .saturating_add(secs * US_PER_SECOND + microsecond as i64),
         }
     }
 
@@ -119,10 +134,11 @@ impl UtcInstant {
         (self.micros - other.micros) as f64 / US_PER_SECOND as f64
     }
 
-    /// `micros` microseconds later (earlier if negative).
+    /// `micros` microseconds later (earlier if negative), saturating at the ends of the
+    /// representable range.
     pub fn add_micros(&self, micros: i64) -> Self {
         UtcInstant {
-            micros: self.micros + micros,
+            micros: self.micros.saturating_add(micros),
         }
     }
 
@@ -150,6 +166,7 @@ impl UtcInstant {
     }
 
     /// Parse `YYYY-MM-DDTHH:MM[:SS[.ffffff]]` with an optional `Z` or `+00:00` suffix.
+    /// The date must exist (no 31 February) and the year be at most 200 000.
     pub fn parse(text: &str) -> Result<Self, ParseError> {
         let err = || ParseError(text.to_string());
         let body = text
@@ -178,8 +195,10 @@ impl UtcInstant {
                 (second, micro)
             }
         };
-        if !(1..=12).contains(&month)
-            || !(1..=31).contains(&day)
+        if !(0..=MAX_YEAR).contains(&year)
+            || !(1..=12).contains(&month)
+            || day == 0
+            || day > days_in_month(year, month)
             || hour > 23
             || minute > 59
             || second > 59
@@ -245,6 +264,12 @@ mod tests {
         let t = UtcInstant::parse("2000-01-01T05:59:33.272404+00:00").unwrap();
         assert_eq!(t.civil().6, 272_404);
         assert!(UtcInstant::parse("2000-13-01T00:00").is_err());
+        assert!(UtcInstant::parse("2001-02-29T00:00").is_err());
+        assert!(UtcInstant::parse("2023-04-31T00:00").is_err());
+        assert!(UtcInstant::parse("2000-02-29T00:00").is_ok());
+        assert!(UtcInstant::parse("1900-02-29T00:00").is_err());
+        assert!(UtcInstant::parse("2147483647-01-01T00:00").is_err());
+        assert!(UtcInstant::parse("17191-01-01T00:00").is_ok());
     }
 
     #[test]

@@ -509,6 +509,17 @@ pub fn bazi(
         Some("female") => Some(false),
         Some(_) => return Err(invalid("sex must be \"male\" or \"female\"")),
     };
+    if !(utc_offset_minutes.is_finite() && utc_offset_minutes.abs() <= 1440.0) {
+        return Err(invalid("utc_offset_minutes must be within ±1440"));
+    }
+    if !(longitude.is_finite() && longitude.abs() <= 360.0) {
+        return Err(invalid("longitude must be within ±360°"));
+    }
+    if !(calendar.equation_of_time.is_finite() && calendar.equation_of_time.abs() <= 60.0) {
+        return Err(invalid(
+            "the calendar's equation_of_time must be within ±60 minutes",
+        ));
+    }
 
     let terms = calendar
         .solar_terms
@@ -523,7 +534,7 @@ pub fn bazi(
 
     // Year and month: by the solar terms.
     let year_cycle = year_cycle_index(lichun.0.civil().0);
-    let month_offset = usize::from((month_term.1.longitude + 360 - LICHUN) % 360 / 30);
+    let month_offset = (usize::from(month_term.1.longitude) + 360 - usize::from(LICHUN)) % 360 / 30;
     let month_stem = ((year_cycle % 10) % 5 * 2 + 2 + month_offset) % 10;
     let month_cycle = cycle_index(month_stem, (2 + month_offset) % 12);
 

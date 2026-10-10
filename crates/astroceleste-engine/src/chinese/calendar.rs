@@ -14,12 +14,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants::TAU;
 use crate::ephemeris::observe::{apparent, ecliptic_latlon, observe};
-use crate::ephemeris::KernelSet;
+use crate::ephemeris::{KernelSet, SpkError};
 use crate::error::EngineError;
 use crate::frames::nutation::iau2000b_radians;
 use crate::frames::{mxv, Orientation};
 use crate::instant::UtcInstant;
 use crate::planets::require_kernel;
+use crate::pyfloat::wrap180;
 use crate::time::Time;
 
 const SUN: i32 = 10;
@@ -147,10 +148,6 @@ fn instant_of(jd: f64) -> UtcInstant {
     UtcInstant::from_micros(seconds * 1_000_000)
 }
 
-fn wrap180(degrees: f64) -> f64 {
-    (degrees + 180.0).rem_euclid(360.0) - 180.0
-}
-
 /// Offset of China time from UT, days: UTC+8 from 1929, the Beijing meridian before.
 fn china_offset(jd: f64) -> f64 {
     // 1929-01-01T00:00 at UTC+8.
@@ -250,6 +247,9 @@ impl Sky<'_> {
                 break;
             }
             starts.push(day);
+            if starts.len() > 13 {
+                return Err(diverged("a year of more than 13 months"));
+            }
         }
 
         // The major terms: the solstice and the eleven after it (the next solstice
@@ -317,6 +317,11 @@ struct Month {
 
 /// The moment near `guess` when the angle `f` (degrees, growing at about `rate` degrees
 /// per day) equals `target`.
+/// A search the ephemeris cannot satisfy: only a corrupt kernel gets here.
+fn diverged(what: &str) -> EngineError {
+    EngineError::Ephemeris(SpkError::Format(format!("Chinese calendar search: {what}")))
+}
+
 fn crossing(
     f: impl Fn(f64) -> Result<f64, EngineError>,
     target: f64,
@@ -375,6 +380,9 @@ fn calendar(kernels: &KernelSet, instant: UtcInstant) -> Result<ChineseCalendar,
         if jie && term > jd {
             break;
         }
+        if solar_terms.len() > 48 {
+            return Err(diverged("no solar term after the moment"));
+        }
         longitude = (longitude + 15) % 360;
         term = sky.sun_at(f64::from(longitude), term + 15.2)?;
     }
@@ -388,6 +396,9 @@ fn calendar(kernels: &KernelSet, instant: UtcInstant) -> Result<ChineseCalendar,
         months = earlier;
     }
     while day + DATE_MARGIN >= end {
+        if months.len() > 40 {
+            return Err(diverged("no lunar year after the moment"));
+        }
         let (mut later, later_end, later_solstice) = sky.sui(next_solstice)?;
         months.append(&mut later);
         (end, next_solstice) = (later_end, later_solstice);

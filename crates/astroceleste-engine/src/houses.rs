@@ -7,9 +7,7 @@
 
 use std::f64::consts::PI;
 
-use crate::frames::Orientation;
 use crate::pyfloat;
-use crate::time::Time;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -55,13 +53,8 @@ pub struct Houses {
     pub midheaven: f64,
 }
 
-/// Houses at UT1 Julian date `jd` for geographic `lat`/`lon` (degrees, east positive).
-pub fn calculate_houses(jd: f64, lat: f64, lon: f64, system: HouseSystem, shift: f64) -> Houses {
-    let gast_hours = Orientation::at(&Time::from_ut1(jd)).gast_hours;
-    houses_at_sidereal_time(jd, gast_hours, lat, lon, system, shift)
-}
-
-/// [`calculate_houses`] with the Greenwich apparent sidereal time already known (e.g.
+/// Houses at UT1 Julian date `jd` for geographic `lat`/`lon` (degrees, east positive),
+/// given the Greenwich apparent sidereal time at `jd` (from the planets' computation, or
 /// interpolated by an electional search).
 pub fn houses_at_sidereal_time(
     jd: f64,
@@ -281,6 +274,14 @@ fn set_angles(c: &mut [f64; 13], asc: f64, mc: f64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::frames::Orientation;
+    use crate::time::Time;
+
+    /// Houses at UT1 Julian date `jd`, with the sidereal time computed for it.
+    fn calculate_houses(jd: f64, lat: f64, lon: f64, system: HouseSystem, shift: f64) -> Houses {
+        let gast_hours = Orientation::at(&Time::from_ut1(jd)).gast_hours;
+        houses_at_sidereal_time(jd, gast_hours, lat, lon, system, shift)
+    }
 
     const JD: f64 = 2_448_027.104_166_666_5; // 1990-05-15 14:30 UT, Rome (41.9° N, 12.5° E)
 

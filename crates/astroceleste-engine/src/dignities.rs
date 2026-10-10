@@ -457,16 +457,6 @@ fn mean_motion(planet: &str) -> f64 {
     }
 }
 
-/// Angular distance between two longitudes, 0-180 degrees.
-pub(crate) fn separation(a: f64, b: f64) -> f64 {
-    let d = pyfloat::rem((a - b).abs(), 360.0);
-    if d > 180.0 {
-        360.0 - d
-    } else {
-        d
-    }
-}
-
 /// Whether a longitude is above the horizon of an Ascendant.
 fn is_above_horizon(longitude: f64, ascendant: f64) -> bool {
     pyfloat::rem(longitude - ascendant, 360.0) >= 180.0
@@ -477,7 +467,7 @@ pub(crate) fn solar_phase(planet: &str, longitude: f64, sun: f64) -> Option<&'st
     if planet == "Sun" {
         return None;
     }
-    let d = separation(longitude, sun);
+    let d = pyfloat::separation(longitude, sun);
     if d <= CAZIMI_ORB {
         Some("cazimi")
     } else if d < COMBUST_ORB {
@@ -834,7 +824,7 @@ pub(crate) fn antiscia(planets: &[Placement]) -> Vec<AntisciaContact> {
                 ("antiscion", antiscion(a.ecliptic_longitude)),
                 ("contra_antiscion", contra_antiscion(a.ecliptic_longitude)),
             ] {
-                let orb = separation(mirror, b.ecliptic_longitude);
+                let orb = pyfloat::separation(mirror, b.ecliptic_longitude);
                 if orb <= ANTISCIA_ORB {
                     out.push(AntisciaContact {
                         body1: a.name,

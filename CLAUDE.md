@@ -37,10 +37,13 @@ node crates/astroceleste-engine-wasm/tests/golden.mjs
 scripts/build-site.sh && python3 -m http.server -d target/site
 ```
 
-The golden tests (`golden_chart`, `golden_horary`, `golden_derived`) **silently skip** (print
-"skipping" and pass) when `kernels/de440s.bsp` is absent — a green run without the kernel does
-not validate charts. Fetch the kernel before trusting results. The py crate is excluded from
-`cargo test` because it links against libpython; test it via maturin.
+The golden tests (`golden_chart`, `golden_horary`, `golden_derived`) and the other
+kernel-dependent tests **silently skip** (print "skipping" and pass) when `kernels/de440s.bsp`
+is absent — a green run without the kernel does not validate charts. Fetch the kernel before
+trusting results. With `ASTROCELESTE_REQUIRE_KERNEL=1` (set in CI's kernel jobs, honoured by
+`cargo test`, pytest and `golden.mjs`) a missing kernel fails instead. `fetch-kernels.sh`
+checks the kernel's SHA-256. The py crate is excluded from `cargo test` because it links
+against libpython; test it via maturin.
 
 ## Architecture
 
@@ -66,7 +69,7 @@ Core pipeline (`crates/astroceleste-engine/src`):
   before fixture comparison (`tests/common/mod.rs`, and the bindings' tests) and tested in
   `tests/dignities.rs`. `horary.rs` adds planetary hours (via `almanac.rs` sunrise/sunset);
   `derived.rs` builds transits, synastry and derived charts on top of `calculate_chart`;
-  `election.rs` scores moments by electional rules (stable factor codes, no wording) and
+  `election/` scores moments by electional rules (stable factor codes, no wording) and
   searches spans. Its search interpolates between hourly exact positions (`Sampler`) and
   re-assesses each window's best moment exactly. Keep the lean `chart::sky` path identical to
   `calculate_chart`'s positions. `chinese/` (`docs/chinese.md`) holds the Chinese calendar
@@ -92,15 +95,16 @@ the entry points, `ChartRequest`, `EngineError`, `UtcInstant` and every type rea
 result (`Chart`, `Placement`, `HoraryData`, …). A new result type must be added to those
 re-exports. `time`, `frames` and `ephemeris::observe` are `pub` + `#[doc(hidden)]` only for the
 `tests/reduction.rs` integration test. `missing_docs` is enabled and CI denies warnings, so every
-public item needs a doc comment. `EngineError`, `SpkError` and `HouseSystem` are
-`#[non_exhaustive]`.
+public item needs a doc comment. `EngineError` and `SpkError` are `#[non_exhaustive]`
+(`HouseSystem` is internal: requests carry the house code as a string).
 
 Module doc comments name the reference function each module ports (e.g.
 `SkyfieldEngine.calculate_planets`, `charts/calc/derived.py`); keep that mapping when porting.
 
 ### Matching Python semantics
 
-Use `pyfloat.rs` (`rem`, `floordiv`, `divmod`, `round`, `round_int`) wherever the reference
+Use `pyfloat.rs` (`rem`, `floordiv`, `divmod`, `round`, `round_int`; `separation` and
+`wrap180` for angles) wherever the reference
 uses Python `%`, `//` or `round()`: Rust's `%` and `f64::round` differ at boundaries and move
 signs/orbs. Output structs must serialize ints vs floats exactly as the reference does.
 
@@ -120,7 +124,9 @@ Fixture comparison lives in `tests/common/mod.rs` (`diff`, `strip_private`). Key
 - Commits follow Conventional Commits; `release-plz update` (run locally) derives the version bump
   and `CHANGELOG.md` from them. Releases are trunk-based: pushing a `vX.Y.Z` tag on `main`
   runs `release.yml`, which checks the tag against `Cargo.toml` and the changelog, then publishes.
-  The version is 0.0.x (experimental, breaking changes allowed). One workspace version is shared
+  The version stays 0.0.x (experimental, breaking changes allowed): never mark a commit as
+  breaking (`!`, `BREAKING CHANGE:`), since release-plz would bump to 0.1; describe API
+  changes in the body. One workspace version is shared
   by the crate, the PyPI wheel (maturin reads it from Cargo) and the npm package (wasm-pack);
   the bindings' path dependency `version = "…"` must match it. Only the core crate goes to
   crates.io (`publish = false` on the bindings; `release.yml` publishes them to PyPI and npm).

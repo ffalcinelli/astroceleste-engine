@@ -77,12 +77,17 @@ cargo run --release -p astroceleste-engine --example excerpt -- \
     kernels/de440s.bsp de440s-1950-2050.bsp 2433282.5 2469807.5
 ```
 
-In code, `Spk::excerpt(start_jd, end_jd)` returns the bytes of a new kernel, and the
-WebAssembly package exposes the same function:
+In code, `Spk::excerpt(start_jd, end_jd)` returns the bytes of a new kernel, and both
+bindings expose it:
 
 ```js
 import { excerptKernel } from "astroceleste-engine";
 const small = excerptKernel(fullKernelBytes, 2433282.5, 2469807.5); // 1950-2050
+```
+
+```python
+import astroceleste_engine as ace
+Path("de440s-1950-2050.bsp").write_bytes(ace.excerpt_kernel("kernels/de440s.bsp", 2433282.5, 2469807.5))
 ```
 
 The [live demo](https://ffalcinelli.github.io/astroceleste-engine/) runs on the 1950–2050

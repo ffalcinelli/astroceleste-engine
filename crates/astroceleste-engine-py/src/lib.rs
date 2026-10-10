@@ -10,10 +10,11 @@ use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
 use astroceleste_engine::{
     bazi as core_bazi, calculate_chart, calculate_derived_chart, calculate_election_chart,
     calculate_horary_chart, calculate_synastry, calculate_transit_chart,
-    chart_dignities as core_chart_dignities, degree_qualities as core_degree_qualities,
-    degree_quality_table as core_degree_quality_table, search_elections,
-    time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions, ChartRequest,
-    ChineseCalendar, ElectionCriteria, EngineError as CoreError, UtcInstant, ZiWeiOptions,
+    chart_dignities as core_chart_dignities, chinese_calendar as core_chinese_calendar,
+    degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
+    search_elections, time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions,
+    ChartRequest, ChineseCalendar, ElectionCriteria, EngineError as CoreError, UtcInstant,
+    ZiWeiOptions,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
@@ -26,7 +27,8 @@ create_exception!(
     astroceleste_engine,
     EngineError,
     PyException,
-    "A calculation failed (malformed kernel, unsupported data)."
+    "A calculation failed: an unreadable kernel (`code` \"invalid_kernel\") or one that \
+     cannot be evaluated (\"ephemeris_error\")."
 );
 create_exception!(
     astroceleste_engine,
@@ -35,24 +37,43 @@ create_exception!(
     "No loaded kernel covers the requested date."
 );
 
+/// `err` with a `code` attribute: the stable error code of the Astroceleste API.
+fn with_code(err: PyErr, code: &str) -> PyErr {
+    Python::attach(|py| {
+        // Setting an attribute on a fresh exception instance cannot fail.
+        let _ = err.value(py).setattr("code", code);
+    });
+    err
+}
+
+fn invalid_input(message: impl ToString) -> PyErr {
+    with_code(PyValueError::new_err(message.to_string()), "invalid_input")
+}
+
+fn invalid_kernel(message: impl ToString) -> PyErr {
+    with_code(EngineError::new_err(message.to_string()), "invalid_kernel")
+}
+
 fn to_py_err(err: CoreError) -> PyErr {
-    match &err {
+    let py_err = match &err {
         CoreError::OutOfRange { .. } => EphemerisRangeError::new_err(err.to_string()),
         CoreError::InvalidInput(msg) => PyValueError::new_err(msg.clone()),
         _ => EngineError::new_err(err.to_string()),
-    }
+    };
+    with_code(py_err, err.code())
 }
 
 /// Python object → JSON value, through the standard `json` module.
 fn to_value(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
     let json = obj.py().import("json")?;
     let text: String = json.call_method1("dumps", (obj,))?.extract()?;
-    serde_json::from_str(&text).map_err(|e| PyValueError::new_err(e.to_string()))
+    serde_json::from_str(&text).map_err(invalid_input)
 }
 
 /// Serializable → Python object (dicts, lists, floats, …).
 fn to_py<T: Serialize>(py: Python<'_>, value: &T) -> PyResult<Py<PyAny>> {
-    let text = serde_json::to_string(value).map_err(|e| EngineError::new_err(e.to_string()))?;
+    let text = serde_json::to_string(value)
+        .map_err(|e| with_code(EngineError::new_err(e.to_string()), "internal_error"))?;
     let json = py.import("json")?;
     Ok(json.call_method1("loads", (text,))?.unbind())
 }
@@ -60,7 +81,7 @@ fn to_py<T: Serialize>(py: Python<'_>, value: &T) -> PyResult<Py<PyAny>> {
 /// A UTC instant from an ISO 8601 string or a `datetime` (naive means UTC).
 fn to_instant(moment: &Bound<'_, PyAny>) -> PyResult<UtcInstant> {
     if let Ok(text) = moment.cast::<PyString>() {
-        return UtcInstant::parse(text.to_str()?).map_err(|e| PyValueError::new_err(e.to_string()));
+        return UtcInstant::parse(text.to_str()?).map_err(invalid_input);
     }
     let py = moment.py();
     let dt = if moment.getattr("tzinfo")?.is_none() {
@@ -186,7 +207,7 @@ impl Engine {
             Ok::<_, String>(set)
         });
         Ok(Engine {
-            kernels: set.map_err(EngineError::new_err)?,
+            kernels: set.map_err(invalid_kernel)?,
         })
     }
 
@@ -283,7 +304,7 @@ impl Engine {
     }
 
     /// A chart with its electional assessment under the `election_data` key.
-    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly"))]
+    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", chinese_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn election(
         &self,
@@ -297,6 +318,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        chinese_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let criteria = to_criteria(criteria)?;
         let req = Request::new(
@@ -308,7 +330,8 @@ impl Engine {
             ayanamsa,
             orb_settings,
         )?
-        .with_dignity_scheme(dignity_scheme);
+        .with_dignity_scheme(dignity_scheme)
+        .with_chinese_calendar(chinese_calendar);
         let chart = py
             .detach(|| calculate_election_chart(&self.kernels, &req.as_chart_request(), &criteria))
             .map_err(to_py_err)?;
@@ -345,6 +368,16 @@ impl Engine {
             .detach(|| search_elections(&self.kernels, &req.as_chart_request(), end, &criteria))
             .map_err(to_py_err)?;
         to_py(py, &result)
+    }
+
+    /// The Chinese calendar around `moment` (solar terms, lunar months, equation of time),
+    /// or None when the loaded kernels do not cover the year or so it needs.
+    fn chinese_calendar(&self, py: Python<'_>, moment: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        let instant = to_instant(moment)?;
+        let calendar = py
+            .detach(|| core_chinese_calendar(&self.kernels, instant))
+            .map_err(to_py_err)?;
+        to_py(py, &calendar)
     }
 
     /// The sky at `moment` and place, with its cross-aspects to `natal_planets`.
@@ -411,6 +444,22 @@ fn derived_chart(
     to_py(py, &result)
 }
 
+/// A smaller kernel (bytes) covering TDB Julian dates `start_jd`..`end_jd` of the kernel
+/// at `path`, with identical positions inside that range (e.g. to ship 1900-2100 of
+/// de440s with an app).
+#[pyfunction]
+fn excerpt_kernel(
+    py: Python<'_>,
+    path: PathBuf,
+    start_jd: f64,
+    end_jd: f64,
+) -> PyResult<Py<pyo3::types::PyBytes>> {
+    let bytes = py
+        .detach(|| Spk::open(&path)?.excerpt(start_jd, end_jd))
+        .map_err(|e| invalid_kernel(format!("{}: {e}", path.display())))?;
+    Ok(pyo3::types::PyBytes::new(py, &bytes).unbind())
+}
+
 /// Julian day of a moment, as the chart calculation uses it.
 #[pyfunction]
 fn julian_day(moment: &Bound<'_, PyAny>) -> PyResult<f64> {
@@ -446,7 +495,8 @@ fn time_lords(
         ascendant_longitude,
         to_instant(start)?,
         to_instant(end)?,
-    );
+    )
+    .map_err(to_py_err)?;
     to_py(py, &lords)
 }
 
@@ -483,8 +533,8 @@ fn bazi(
     year: Option<i32>,
     date: Option<&str>,
 ) -> PyResult<Py<PyAny>> {
-    let calendar: ChineseCalendar = serde_json::from_value(to_value(calendar)?)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let calendar: ChineseCalendar =
+        serde_json::from_value(to_value(calendar)?).map_err(invalid_input)?;
     let options = BaziOptions {
         solar_time,
         zi_hour,
@@ -523,8 +573,8 @@ fn zi_wei(
     year: Option<i32>,
     date: Option<&str>,
 ) -> PyResult<Py<PyAny>> {
-    let calendar: ChineseCalendar = serde_json::from_value(to_value(calendar)?)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let calendar: ChineseCalendar =
+        serde_json::from_value(to_value(calendar)?).map_err(invalid_input)?;
     let options = ZiWeiOptions {
         solar_time,
         zi_hour,
@@ -551,6 +601,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(synastry, m)?)?;
     m.add_function(wrap_pyfunction!(derived_chart, m)?)?;
     m.add_function(wrap_pyfunction!(julian_day, m)?)?;
+    m.add_function(wrap_pyfunction!(excerpt_kernel, m)?)?;
     m.add_function(wrap_pyfunction!(degree_qualities, m)?)?;
     m.add_function(wrap_pyfunction!(degree_quality_table, m)?)?;
     m.add_function(wrap_pyfunction!(time_lords, m)?)?;
