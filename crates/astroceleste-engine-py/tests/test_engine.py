@@ -16,7 +16,7 @@ FULL = ROOT / "kernels" / "de440s.bsp"
 FIXTURES = ROOT / "tests" / "fixtures"
 PRIVATE_KEYS = {"degree_symbol", "degree_symbols", "condition"}
 # Chart keys added after the reference implementation, absent from the fixtures.
-ADDED_CHART_KEYS = {"sect", "dignity_scheme", "receptions", "antiscia", "planetary_hours"}
+ADDED_CHART_KEYS = {"sect", "dignity_scheme", "node_type", "receptions", "antiscia", "planetary_hours"}
 
 # Skipped without the full kernel, unless ASTROCELESTE_REQUIRE_KERNEL is set (as in CI): then
 # the tests run, and fail on the missing file.
@@ -118,6 +118,17 @@ def test_chart_shape(excerpt):
     assert names[:2] == ["Sun", "Moon"] and names[-2:] == ["Ascendant", "Midheaven"]
     assert len(chart["houses"]) == 12
     json.dumps(chart)  # plain JSON types only
+
+
+def test_node_type_selects_the_lunar_nodes(excerpt):
+    def north(chart):
+        return next(p for p in chart["planets"] if p["name"] == "North Node")["ecliptic_longitude"]
+
+    mean = excerpt.chart("2000-06-01T12:00:00Z", 41.9, 12.5)
+    true = excerpt.chart("2000-06-01T12:00:00Z", 41.9, 12.5, node_type="true")
+    assert (mean["node_type"], true["node_type"]) == ("mean", "true")
+    assert abs(north(true) - 115.40072) < 2 / 3600  # Swiss Ephemeris TRUE_NODE
+    assert abs(north(mean) - north(true)) > 1.0
 
 
 def test_out_of_range_raises(excerpt):

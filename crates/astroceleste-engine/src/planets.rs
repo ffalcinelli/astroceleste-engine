@@ -1,11 +1,11 @@
 //! Planetary positions (`SkyfieldEngine.calculate_planets`): apparent geocentric
-//! longitudes of date from the JPL kernels, the mean lunar nodes, Chiron, Black Moon
-//! Lilith and the minor bodies (main asteroids and dwarf planets).
+//! longitudes of date from the JPL kernels, the mean or true lunar nodes, Chiron, Black
+//! Moon Lilith and the minor bodies (main asteroids and dwarf planets).
 
-use crate::ephemeris::observe::{apparent, ecliptic_latlon, observe};
+use crate::ephemeris::observe::{apparent, ecliptic_latlon, observe, EARTH};
 use crate::ephemeris::{Kernel, KernelSet};
 use crate::error::EngineError;
-use crate::frames::Orientation;
+use crate::frames::{mxv, Orientation};
 use crate::minor_bodies::{chiron, minor_body, minor_body_symbol, MINOR_BODIES};
 use crate::pyfloat;
 use crate::time::Time;
@@ -46,6 +46,39 @@ pub fn require_kernel(kernels: &KernelSet, jd: f64) -> Result<&Kernel, EngineErr
     })
 }
 
+/// Which lunar node a chart carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum NodeType {
+    /// The mean node (IAU polynomial), moving steadily backwards.
+    #[default]
+    Mean,
+    /// The true (osculating) node: where the Moon's instantaneous orbit crosses the
+    /// ecliptic of date, from the kernel's state vectors. It wobbles about the mean node
+    /// by up to 1.7° and is sometimes direct.
+    True,
+}
+
+impl NodeType {
+    /// "true" or "osculating" (any case) is the true node; anything else is the mean one.
+    pub fn from_code(code: &str) -> Self {
+        let code = code.trim();
+        if code.eq_ignore_ascii_case("true") || code.eq_ignore_ascii_case("osculating") {
+            NodeType::True
+        } else {
+            NodeType::Mean
+        }
+    }
+
+    /// The code charts echo: "mean" or "true".
+    pub fn code(self) -> &'static str {
+        match self {
+            NodeType::Mean => "mean",
+            NodeType::True => "true",
+        }
+    }
+}
+
 pub struct Planets {
     /// Bodies that could not be computed (e.g. Chiron outside its table) are left out.
     pub bodies: Vec<BodyPosition>,
@@ -53,11 +86,12 @@ pub struct Planets {
 
 /// All chart bodies at UT1 Julian date `jd`, shifted by `shift` degrees (the ayanamsa for
 /// sidereal charts, 0 for tropical), with the Greenwich apparent sidereal time (hours)
-/// at `jd`.
+/// at `jd`. `node` selects the mean or the true lunar nodes.
 pub fn planets_and_sidereal_time(
     kernels: &KernelSet,
     jd: f64,
     shift: f64,
+    node: NodeType,
 ) -> Result<(Planets, f64), EngineError> {
     let sample = SpeedSample::at(kernels, jd)?;
     let mut bodies = Vec::with_capacity(14 + MINOR_BODIES.len());
@@ -77,7 +111,7 @@ pub fn planets_and_sidereal_time(
         });
     }
 
-    // Mean lunar ascending node (IAU polynomial) and its opposite.
+    // Mean lunar ascending node (IAU polynomial), also the base of Lilith below.
     let t_cent = (jd - 2_451_545.0) / 36525.0;
     let omega = pyfloat::rem(
         125.0445479 - 1934.1362891 * t_cent
@@ -86,10 +120,14 @@ pub fn planets_and_sidereal_time(
             - t_cent.powf(4.0) / 60616000.0,
         360.0,
     );
-    let mean_node = pyfloat::rem(omega - shift, 360.0);
+    let (node_longitude, node_speed) = match node {
+        NodeType::Mean => (omega, -0.05295),
+        NodeType::True => sample.true_node()?,
+    };
+    let north = pyfloat::rem(node_longitude - shift, 360.0);
     for (name, symbol, longitude) in [
-        ("North Node", "☊", mean_node),
-        ("South Node", "☋", pyfloat::rem(mean_node + 180.0, 360.0)),
+        ("North Node", "☊", north),
+        ("South Node", "☋", pyfloat::rem(north + 180.0, 360.0)),
     ] {
         bodies.push(BodyPosition {
             name,
@@ -97,8 +135,8 @@ pub fn planets_and_sidereal_time(
             longitude,
             latitude: 0.0,
             distance: 0.00257,
-            speed: -0.05295,
-            is_retrograde: true,
+            speed: node_speed,
+            is_retrograde: node_speed < 0.0,
         });
     }
 
@@ -205,5 +243,33 @@ impl<'k> SpeedSample<'k> {
         let lon_plus = ecliptic_latlon(&self.orientation_plus, &app_plus).1;
         let d_lon = pyfloat::wrap180(lon_plus - lon);
         Ok((lat, lon, dist, d_lon * 24.0))
+    }
+
+    /// Longitude (degrees, tropical) and speed (degrees per day) of the true ascending
+    /// node: the direction of ẑ × h, h being the Moon's geocentric orbital angular momentum
+    /// in the true ecliptic and equinox of date.
+    fn true_node(&self) -> Result<(f64, f64), EngineError> {
+        let node_at = |t: &Time, orientation: &Orientation| -> Result<f64, EngineError> {
+            let (moon, moon_velocity) = self.kernel.barycentric(301, t)?;
+            let (earth, earth_velocity) = self.kernel.barycentric(EARTH, t)?;
+            let r = mxv(
+                &orientation.ecliptic,
+                &[moon[0] - earth[0], moon[1] - earth[1], moon[2] - earth[2]],
+            );
+            let v = mxv(
+                &orientation.ecliptic,
+                &[
+                    moon_velocity[0] - earth_velocity[0],
+                    moon_velocity[1] - earth_velocity[1],
+                    moon_velocity[2] - earth_velocity[2],
+                ],
+            );
+            let h_x = r[1] * v[2] - r[2] * v[1];
+            let h_y = r[2] * v[0] - r[0] * v[2];
+            Ok(h_x.atan2(-h_y).to_degrees().rem_euclid(360.0))
+        };
+        let lon = node_at(&self.t, &self.orientation)?;
+        let lon_plus = node_at(&self.t_plus, &self.orientation_plus)?;
+        Ok((lon, pyfloat::wrap180(lon_plus - lon) * 24.0))
     }
 }

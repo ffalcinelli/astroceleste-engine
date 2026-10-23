@@ -8,6 +8,24 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+### Added
+
+- True (osculating) lunar node: `node_type` on chart requests (`"mean"` default, or
+  `"true"`), echoed as the chart's `node_type`. The node is where the Moon's instantaneous
+  geocentric orbit crosses the true ecliptic of date, from the kernel's state vectors;
+  it matches Swiss Ephemeris' `TRUE_NODE` within 1″. Python takes `node_type=` on `chart`,
+  `horary`, `election` and `transit`; WASM requests take `node_type`.
+- Sripati house system (`S`): Porphyry's cusps as the middles of the houses, the cusps
+  halfway between them.
+
+Both are ported from Priyank Gahtori's Khagole fork
+(https://github.com/PriyankGahtori/Khagole).
+
+### Changed
+
+- `ChartRequest` has a new public field (`node_type`), and `planets_and_sidereal_time`
+  takes a `NodeType`.
+
 ## [0.0.13]
 
 ### Added

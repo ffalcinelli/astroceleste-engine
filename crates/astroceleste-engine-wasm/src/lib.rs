@@ -64,9 +64,12 @@ fn default_ayanamsa() -> String {
 fn default_dignity_scheme() -> String {
     "lilly".into()
 }
+fn default_node_type() -> String {
+    "mean".into()
+}
 
 /// `{ utc, latitude, longitude, house_system?, zodiac_type?, ayanamsa?, orb_settings?,
-/// dignity_scheme?, quesited_house?, chinese_calendar? }`
+/// dignity_scheme?, node_type?, quesited_house?, chinese_calendar? }`
 #[derive(Deserialize)]
 struct Request {
     utc: String,
@@ -82,6 +85,9 @@ struct Request {
     orb_settings: Option<Value>,
     #[serde(default = "default_dignity_scheme")]
     dignity_scheme: String,
+    /// "mean" (default) or "true" lunar nodes.
+    #[serde(default = "default_node_type")]
+    node_type: String,
     /// Horary only: the house of the matter asked about (1-12).
     #[serde(default)]
     quesited_house: Option<u8>,
@@ -107,6 +113,7 @@ impl Request {
             ayanamsa: &self.ayanamsa,
             orb_settings: self.orb_settings.as_ref(),
             dignity_scheme: &self.dignity_scheme,
+            node_type: &self.node_type,
             chinese_calendar: self.chinese_calendar,
         }
     }

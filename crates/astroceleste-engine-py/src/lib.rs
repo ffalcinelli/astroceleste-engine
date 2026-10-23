@@ -127,6 +127,7 @@ struct Request {
     ayanamsa: String,
     orb_settings: Option<Value>,
     dignity_scheme: String,
+    node_type: String,
     chinese_calendar: bool,
 }
 
@@ -150,12 +151,18 @@ impl Request {
             ayanamsa: ayanamsa.to_string(),
             orb_settings: optional_value(orb_settings)?,
             dignity_scheme: "lilly".to_string(),
+            node_type: "mean".to_string(),
             chinese_calendar: false,
         })
     }
 
     fn with_dignity_scheme(mut self, scheme: &str) -> Self {
         self.dignity_scheme = scheme.to_string();
+        self
+    }
+
+    fn with_node_type(mut self, node_type: &str) -> Self {
+        self.node_type = node_type.to_string();
         self
     }
 
@@ -174,6 +181,7 @@ impl Request {
             ayanamsa: &self.ayanamsa,
             orb_settings: self.orb_settings.as_ref(),
             dignity_scheme: &self.dignity_scheme,
+            node_type: &self.node_type,
             chinese_calendar: self.chinese_calendar,
         }
     }
@@ -234,7 +242,7 @@ impl Engine {
 
     /// The chart of a moment and place, as the API's chart dict; with
     /// `chinese_calendar`, also the Chinese calendar of the moment.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", chinese_calendar=false))]
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", chinese_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn chart(
         &self,
@@ -247,6 +255,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        node_type: &str,
         chinese_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let req = Request::new(
@@ -259,6 +268,7 @@ impl Engine {
             orb_settings,
         )?
         .with_dignity_scheme(dignity_scheme)
+        .with_node_type(node_type)
         .with_chinese_calendar(chinese_calendar);
         let chart = py
             .detach(|| calculate_chart(&self.kernels, &req.as_chart_request()))
@@ -268,7 +278,7 @@ impl Engine {
 
     /// A chart with its horary analysis under the `horary_data` key; `quesited_house`
     /// (1-12) is the house of the matter asked about.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", quesited_house=None, chinese_calendar=false))]
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", quesited_house=None, chinese_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn horary(
         &self,
@@ -281,6 +291,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        node_type: &str,
         quesited_house: Option<u8>,
         chinese_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
@@ -294,6 +305,7 @@ impl Engine {
             orb_settings,
         )?
         .with_dignity_scheme(dignity_scheme)
+        .with_node_type(node_type)
         .with_chinese_calendar(chinese_calendar);
         let chart = py
             .detach(|| {
@@ -304,7 +316,7 @@ impl Engine {
     }
 
     /// A chart with its electional assessment under the `election_data` key.
-    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", chinese_calendar=false))]
+    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", chinese_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn election(
         &self,
@@ -318,6 +330,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        node_type: &str,
         chinese_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let criteria = to_criteria(criteria)?;
@@ -331,6 +344,7 @@ impl Engine {
             orb_settings,
         )?
         .with_dignity_scheme(dignity_scheme)
+        .with_node_type(node_type)
         .with_chinese_calendar(chinese_calendar);
         let chart = py
             .detach(|| calculate_election_chart(&self.kernels, &req.as_chart_request(), &criteria))
@@ -381,7 +395,7 @@ impl Engine {
     }
 
     /// The sky at `moment` and place, with its cross-aspects to `natal_planets`.
-    #[pyo3(signature = (natal_planets, moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly"))]
+    #[pyo3(signature = (natal_planets, moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean"))]
     #[allow(clippy::too_many_arguments)]
     fn transit(
         &self,
@@ -395,6 +409,7 @@ impl Engine {
         ayanamsa: &str,
         orb_settings: Option<&Bound<'_, PyAny>>,
         dignity_scheme: &str,
+        node_type: &str,
     ) -> PyResult<Py<PyAny>> {
         let natal = to_value(natal_planets)?;
         let req = Request::new(
@@ -406,7 +421,8 @@ impl Engine {
             ayanamsa,
             orb_settings,
         )?
-        .with_dignity_scheme(dignity_scheme);
+        .with_dignity_scheme(dignity_scheme)
+        .with_node_type(node_type);
         let chart = py
             .detach(|| calculate_transit_chart(&self.kernels, &natal, &req.as_chart_request()))
             .map_err(to_py_err)?;

@@ -23,7 +23,7 @@ const chart = engine.chart({
   utc: "1987-05-17T14:30:00Z",
   latitude: 41.9,
   longitude: 12.5,
-  house_system: "P",        // optional: P, K, R, C, T, B, M, O, E, V, W
+  house_system: "P",        // optional: P, K, R, C, T, B, M, O, S, E, V, W
   zodiac_type: "sidereal",  // optional: tropical (default) or sidereal
   ayanamsa: "lahiri",       // optional
   chinese_calendar: true,   // optional: add the Chinese calendar of the moment

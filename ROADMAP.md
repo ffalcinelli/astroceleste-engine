@@ -23,8 +23,8 @@ These shape every item below and are not up for change without a deliberate deci
 |---|---|
 | Ephemeris | SPK types 2 and 3 from a file (reads cached) or from memory; kernel sets in preference order; excerpts; bodies split over several segments |
 | Reduction | Skyfield 1.55 port: ΔT, IAU 2000A nutation, light-time, deflection, aberration; checked stage by stage |
-| Bodies | Sun to Pluto, mean nodes, mean Black Moon Lilith, Chiron (1849–2151 table) |
-| Houses | 11 systems: Placidus, Koch, Regiomontanus, Campanus, Topocentric, Alcabitius, Morinus, Porphyry, Equal, Vehlow, Whole Sign |
+| Bodies | Sun to Pluto, mean or true nodes, mean Black Moon Lilith, Chiron (1849–2151 table) |
+| Houses | 12 systems: Placidus, Koch, Regiomontanus, Campanus, Topocentric, Alcabitius, Morinus, Porphyry, Sripati, Equal, Vehlow, Whole Sign |
 | Zodiac | tropical and sidereal, 14 ayanamsas |
 | Chart | 7 aspects, 61 fixed stars, 11 lots, temperament, lunar status and mansions, essential and accidental dignities (Lilly and Dorothean), sect, receptions, antiscia, planetary hours |
 | Techniques | horary (strictures, judgment), transits, synastry, derived charts, elections (scoring and search), profections and firdaria, Lilly's degree qualities |
@@ -39,8 +39,8 @@ which 2.2 ms is the sunrise search for the planetary hours; a horary chart 4.6 m
 
 ### Astronomy
 
-- **True lunar node and osculating (true) Lilith**, next to the mean ones. Both follow from
-  the Moon's state vector, which the kernels already give.
+- **Osculating (true) Lilith**, next to the mean one. It follows from the Moon's state
+  vector, like the true node.
 - **Vertex and East Point**, from the sidereal time and latitude the houses already use.
 - **Asteroids** (Ceres, Pallas, Juno, Vesta) from JPL small-body SPK kernels, loaded like
   the planetary ones. Check the segment types those kernels use first; the reader handles

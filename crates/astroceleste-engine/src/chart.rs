@@ -19,7 +19,7 @@ use crate::instant::UtcInstant;
 use crate::lots::{arabic_parts, Lot};
 use crate::lunar::{lunar_status, LunarStatus};
 use crate::minor_bodies::{is_minor_body, minor_body_symbol};
-use crate::planets::planets_and_sidereal_time;
+use crate::planets::{planets_and_sidereal_time, NodeType};
 use crate::symbolic::symbolic_degree_number;
 use crate::temperament::{temperament, Temperament};
 use crate::zodiac::{
@@ -76,6 +76,8 @@ pub struct ChartRequest<'a> {
     pub orb_settings: Option<&'a Value>,
     /// Doctrine of triplicities and bounds: "lilly" (default) or "dorothean".
     pub dignity_scheme: &'a str,
+    /// Lunar nodes: "mean" (default) or "true" (osculating).
+    pub node_type: &'a str,
     /// Also compute the [`ChineseCalendar`] of the moment (default `false`): a few dozen
     /// solar-term and new-moon searches.
     pub chinese_calendar: bool,
@@ -93,6 +95,7 @@ impl<'a> ChartRequest<'a> {
             ayanamsa: DEFAULT_AYANAMSA,
             orb_settings: None,
             dignity_scheme: "lilly",
+            node_type: "mean",
             chinese_calendar: false,
         }
     }
@@ -205,6 +208,8 @@ pub struct Chart {
     pub sect: Option<&'static str>,
     /// Doctrine of triplicities and bounds used for `condition` and `receptions`.
     pub dignity_scheme: &'static str,
+    /// Lunar nodes in the chart: "mean" or "true".
+    pub node_type: &'static str,
     /// Receptions among the seven planets.
     pub receptions: Vec<Reception>,
     /// Antiscia and contra-antiscia among the seven planets and the angles.
@@ -288,7 +293,8 @@ pub(crate) fn sky(kernels: &KernelSet, req: &ChartRequest) -> Result<Sky, Engine
     let shift = if is_sidereal { info.value } else { 0.0 };
 
     // The houses reuse the planets' sidereal time (the same instant): one nutation.
-    let (engine, gast_hours) = planets_and_sidereal_time(kernels, jd, shift)?;
+    let node = NodeType::from_code(req.node_type);
+    let (engine, gast_hours) = planets_and_sidereal_time(kernels, jd, shift, node)?;
     let houses = houses_at_sidereal_time(
         jd,
         gast_hours,
@@ -478,6 +484,7 @@ pub(crate) fn chart_without_hours(
         lunar_status: lunar,
         sect,
         dignity_scheme: scheme.code(),
+        node_type: NodeType::from_code(req.node_type).code(),
         receptions: chart_receptions,
         antiscia: chart_antiscia,
         planetary_hours: None,

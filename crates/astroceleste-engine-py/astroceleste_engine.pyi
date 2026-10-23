@@ -41,6 +41,7 @@ class Engine:
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
         dignity_scheme: str = "lilly",
+        node_type: str = "mean",
         chinese_calendar: bool = False,
     ) -> dict[str, Any]: ...
     def horary(
@@ -53,6 +54,7 @@ class Engine:
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
         dignity_scheme: str = "lilly",
+        node_type: str = "mean",
         quesited_house: int | None = None,
         chinese_calendar: bool = False,
     ) -> dict[str, Any]: ...
@@ -67,6 +69,7 @@ class Engine:
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
         dignity_scheme: str = "lilly",
+        node_type: str = "mean",
         chinese_calendar: bool = False,
     ) -> dict[str, Any]:
         """A chart with its electional assessment under `election_data`."""
@@ -95,6 +98,7 @@ class Engine:
         ayanamsa: str = "galcent_0sag",
         orb_settings: dict[str, Any] | None = None,
         dignity_scheme: str = "lilly",
+        node_type: str = "mean",
     ) -> dict[str, Any]: ...
 
 def synastry(

@@ -396,13 +396,18 @@ mod tests {
         let jd = crate::UtcInstant::parse("2024-03-25T00:00:00Z")
             .unwrap()
             .julian_day();
-        let mercury = crate::planets::planets_and_sidereal_time(&kernels, jd, 0.0)
-            .unwrap()
-            .0
-            .bodies
-            .into_iter()
-            .find(|b| b.name == "Mercury")
-            .unwrap();
+        let mercury = crate::planets::planets_and_sidereal_time(
+            &kernels,
+            jd,
+            0.0,
+            crate::planets::NodeType::Mean,
+        )
+        .unwrap()
+        .0
+        .bodies
+        .into_iter()
+        .find(|b| b.name == "Mercury")
+        .unwrap();
         let body = b("Mercury", mercury.longitude, mercury.speed);
         let days = station_within(&kernels, jd, body, 30.0).unwrap();
         // The station is at 2024-04-01 ~22h UTC, 7.9 days on; samples are half a day apart.

@@ -35,18 +35,20 @@ computed charts or calendars, or on plain longitudes, and do not.
 | moment | UTC instant: `UtcInstant` in Rust, `datetime` or ISO string in Python, ISO string `utc` in JS (a real calendar date, year 0–200000) | required |
 | latitude | geographic latitude in degrees, north positive, within ±90 | required |
 | longitude | geographic longitude in degrees, east positive, within ±360 | required |
-| house system | `P` Placidus, `K` Koch, `R` Regiomontanus, `C` Campanus, `T` Topocentric (Polich-Page), `B` Alcabitius, `M` Morinus, `O` Porphyry, `E` Equal, `V` Vehlow, `W` Whole Sign (the Swiss Ephemeris letters) | `P` |
+| house system | `P` Placidus, `K` Koch, `R` Regiomontanus, `C` Campanus, `T` Topocentric (Polich-Page), `B` Alcabitius, `M` Morinus, `O` Porphyry, `S` Sripati, `E` Equal, `V` Vehlow, `W` Whole Sign (the Swiss Ephemeris letters) | `P` |
 | zodiac type | `tropical` or `sidereal` | `tropical` |
 | ayanamsa | sidereal reference, see below (ignored for tropical charts) | `galcent_0sag` |
 | orb settings | overrides merged over the default orbs, see below | none |
 | dignity scheme | `lilly` (Lilly's triplicities and terms) or `dorothean` (three triplicity lords, Egyptian bounds), see [dignities](dignities.md) | `lilly` |
+| node type | `mean` (IAU polynomial) or `true` (osculating, from the Moon's state vector; `osculating` is accepted too) lunar nodes | `mean` |
 | chinese calendar | also compute the Chinese calendar of the moment (`chinese_calendar` key), see [Chinese astrology](chinese.md) | `false` |
 
 Times are always UTC. Convert civil time (with its time zone and daylight saving time) to
 UTC before calling the engine. Only the first letter of the house system is used, and
 unknown codes fall back to Placidus. A latitude or longitude that is not a finite number
 in range is an `invalid_input` error. Koch falls back to Porphyry inside the polar circles,
-where it is undefined. Morinus cusps 1 and 10 are not the Ascendant and Midheaven. Zodiac types other than `sidereal` are tropical.
+where it is undefined. Morinus cusps 1 and 10 are not the Ascendant and Midheaven, nor are
+Sripati's: its cusps lie halfway between Porphyry's, which become the middles of the houses. Zodiac types other than `sidereal` are tropical.
 
 ```rust
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
@@ -152,6 +154,7 @@ A chart is an object with these keys, in this order:
 | `lunar_status` | phase, illumination, age, speed, dignity and lunar mansion |
 | `sect` | `diurnal` (the Sun above the horizon) or `nocturnal` |
 | `dignity_scheme` | the scheme the dignities were judged by |
+| `node_type` | `mean` or `true`: the lunar nodes in `planets` |
 | `receptions` | receptions among the seven planets: `{planet, receiver, dignities, mutual, aspect}` |
 | `antiscia` | antiscion and contra-antiscion contacts: `{body1, body2, kind, orb}` |
 | `planetary_hours` | the planetary day and hour (left out of transit skies) |

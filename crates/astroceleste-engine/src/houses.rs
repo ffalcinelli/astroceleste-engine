@@ -1,5 +1,6 @@
 //! House cusps, Ascendant and Midheaven: Placidus (default), Koch, Regiomontanus, Campanus,
-//! Topocentric (Polich-Page), Alcabitius, Morinus, Porphyry, Equal, Vehlow and Whole Sign.
+//! Topocentric (Polich-Page), Alcabitius, Morinus, Porphyry, Sripati, Equal, Vehlow and
+//! Whole Sign.
 //!
 //! Placidus, Whole Sign, Equal and Porphyry follow the reference implementation
 //! (`SkyfieldEngine.calculate_houses`); the other systems use the standard formulas, as in
@@ -20,6 +21,9 @@ pub enum HouseSystem {
     Alcabitius,
     Morinus,
     Porphyry,
+    /// Porphyry's cusps as the middles of the houses (bhava madhya), the cusps (sandhi)
+    /// halfway between them: the Indian Bhava Chalita.
+    Sripati,
     Equal,
     Vehlow,
     WholeSign,
@@ -37,6 +41,7 @@ impl HouseSystem {
             Some('B') => HouseSystem::Alcabitius,
             Some('M') => HouseSystem::Morinus,
             Some('O') => HouseSystem::Porphyry,
+            Some('S') => HouseSystem::Sripati,
             Some('E') => HouseSystem::Equal,
             Some('V') => HouseSystem::Vehlow,
             Some('W') => HouseSystem::WholeSign,
@@ -185,6 +190,7 @@ pub fn houses_at_sidereal_time(
             opposite_cusps(&mut c);
         }
         HouseSystem::Porphyry => porphyry(&mut c, asc_deg, mc_deg),
+        HouseSystem::Sripati => sripati(&mut c, asc_deg, mc_deg),
         HouseSystem::Placidus => {
             set_angles(&mut c, asc_deg, mc_deg);
             let solve = |offset: f64, semi_factor: f64| {
@@ -256,6 +262,17 @@ fn porphyry(c: &mut [f64; 13], asc_deg: f64, mc_deg: f64) {
     opposite_cusps(c);
 }
 
+/// Sripati: each cusp halfway between the Porphyry cusps of the house before and its own.
+fn sripati(c: &mut [f64; 13], asc_deg: f64, mc_deg: f64) {
+    let mut middles = [0.0; 13];
+    porphyry(&mut middles, asc_deg, mc_deg);
+    for house in 1..=12 {
+        let before = middles[if house == 1 { 12 } else { house - 1 }];
+        let span = pyfloat::rem(middles[house] - before, 360.0);
+        c[house] = pyfloat::rem(before + span / 2.0, 360.0);
+    }
+}
+
 /// Houses 5, 6 oppose 11, 12; houses 8, 9 oppose 2, 3.
 fn opposite_cusps(c: &mut [f64; 13]) {
     c[5] = pyfloat::rem(c[11] + 180.0, 360.0);
@@ -293,7 +310,7 @@ mod tests {
     /// Cusps within 1′ of Swiss Ephemeris 2.10 (`swe.houses`) for the same moment.
     #[test]
     fn systems_match_swiss_ephemeris() {
-        let reference: [(&str, [f64; 12]); 7] = [
+        let reference: [(&str, [f64; 12]); 8] = [
             (
                 "K",
                 [
@@ -343,6 +360,13 @@ mod tests {
                     55.2408, 85.2408, 115.2408, 145.2408,
                 ],
             ),
+            (
+                "S",
+                [
+                    175.5363, 205.5363, 236.1272, 266.7182, 296.7182, 326.1272, 355.5363, 25.5363,
+                    56.1272, 86.7182, 116.7182, 146.1272,
+                ],
+            ),
         ];
         for (code, expected) in reference {
             let houses = calculate_houses(JD, 41.9, 12.5, HouseSystem::from_code(code), 0.0);
@@ -367,6 +391,7 @@ mod tests {
             ("B", HouseSystem::Alcabitius),
             ("M", HouseSystem::Morinus),
             ("O", HouseSystem::Porphyry),
+            ("S", HouseSystem::Sripati),
             ("E", HouseSystem::Equal),
             ("V", HouseSystem::Vehlow),
             ("W", HouseSystem::WholeSign),

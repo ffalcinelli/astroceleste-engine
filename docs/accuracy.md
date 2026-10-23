@@ -71,7 +71,9 @@ own implementations (`pyfloat.rs`) wherever the reference relies on them.
 Matching the reference also means inheriting its model: apparent geocentric positions of
 date from JPL DE440s/DE441, with light-time, gravitational deflection by the Sun, Jupiter
 and Saturn, aberration, IAU 2000A nutation and IAU 2006 precession, the same model as
-Skyfield. The mean lunar nodes and mean Lilith follow the reference's formulas. For future
+Skyfield. The mean lunar nodes and mean Lilith follow the reference's formulas. The true
+node, which the reference lacked, is tested against Swiss Ephemeris (`tests/nodes.rs`,
+within 2″ over 1870-2051). For future
 dates ΔT is only predicted (see [Ephemerides](ephemerides.md#time-scales)).
 
 ## What CI runs

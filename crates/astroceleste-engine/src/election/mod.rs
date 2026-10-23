@@ -24,7 +24,7 @@ use crate::horary::{
 };
 use crate::houses::{houses_at_sidereal_time, HouseSystem};
 use crate::instant::UtcInstant;
-use crate::planets::{planets_and_sidereal_time, require_kernel, BodyPosition};
+use crate::planets::{planets_and_sidereal_time, require_kernel, BodyPosition, NodeType};
 use crate::pyfloat;
 use crate::zodiac::{ayanamsa, ayanamsa_info};
 

@@ -21,6 +21,7 @@ fn horary_charts_match_reference() {
             ayanamsa: input["ayanamsa"].as_str().unwrap(),
             orb_settings: None,
             dignity_scheme: "lilly",
+            node_type: "mean",
             chinese_calendar: false,
         };
         let chart = calculate_horary_chart(&kernels, &req, None).unwrap();

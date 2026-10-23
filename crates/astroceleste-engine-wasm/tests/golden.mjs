@@ -15,7 +15,7 @@ const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualitie
 
 const PRIVATE = new Set(["degree_symbol", "degree_symbols", "condition"]);
 // Chart keys added after the reference implementation, absent from the fixtures.
-const ADDED = new Set(["sect", "dignity_scheme", "receptions", "antiscia", "planetary_hours"]);
+const ADDED = new Set(["sect", "dignity_scheme", "node_type", "receptions", "antiscia", "planetary_hours"]);
 const stripNested = (v) =>
   Array.isArray(v) ? v.map(stripNested)
   : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([k]) => !PRIVATE.has(k)).map(([k, x]) => [k, stripNested(x)]))
@@ -66,6 +66,13 @@ const chart = small.chart({ utc: "2000-06-01T12:00:00Z", latitude: 41.9, longitu
 assert.equal(chart.planets[0].name, "Sun");
 assert.equal(chart.houses.length, 12);
 assert.equal(julianDay("2000-06-01T12:00:00Z"), 2451697);
+assert.equal(chart.node_type, "mean");
+{
+  const north = (c) => c.planets.find((p) => p.name === "North Node").ecliptic_longitude;
+  const trueNode = small.chart({ utc: "2000-06-01T12:00:00Z", latitude: 41.9, longitude: 12.5, node_type: "true" });
+  assert.equal(trueNode.node_type, "true");
+  assert.ok(Math.abs(north(trueNode) - 115.40072) < 2 / 3600); // Swiss Ephemeris TRUE_NODE
+}
 assert.throws(() => small.chart({ utc: "2010-01-01T00:00:00Z", latitude: 0, longitude: 0 }), (e) => e.code === "ephemeris_out_of_range");
 assert.throws(() => small.chart({ utc: "nope", latitude: 0, longitude: 0 }), (e) => e.code === "invalid_input");
 // An excerpt of the excerpt computes the same charts inside its range.

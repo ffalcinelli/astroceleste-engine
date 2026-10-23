@@ -46,9 +46,10 @@ const PRIVATE_KEYS: [&str; 2] = ["degree_symbol", "degree_symbols"];
 
 /// Chart keys added after the reference implementation, absent from the fixtures and
 /// tested on their own (`tests/dignities.rs`).
-const ADDED_CHART_KEYS: [&str; 5] = [
+const ADDED_CHART_KEYS: [&str; 6] = [
     "sect",
     "dignity_scheme",
+    "node_type",
     "receptions",
     "antiscia",
     "planetary_hours",

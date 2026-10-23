@@ -56,7 +56,12 @@ impl<'a> Sampler<'a> {
         } else {
             0.0
         };
-        let (planets, gast_hours) = planets_and_sidereal_time(self.kernels, jd, shift)?;
+        let (planets, gast_hours) = planets_and_sidereal_time(
+            self.kernels,
+            jd,
+            shift,
+            NodeType::from_code(self.req.node_type),
+        )?;
         if self.anchors.len() == 3 {
             self.anchors.remove(0);
         }
