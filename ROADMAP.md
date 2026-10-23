@@ -29,6 +29,7 @@ These shape every item below and are not up for change without a deliberate deci
 | Chart | 7 aspects, 61 fixed stars, 11 lots, temperament, lunar status and mansions, essential and accidental dignities (Lilly and Dorothean), sect, receptions, antiscia, planetary hours |
 | Techniques | horary (strictures, judgment), transits, synastry, derived charts, elections (scoring and search), profections and firdaria, Lilly's degree qualities |
 | Chinese | calendar (solar terms, lunar and leap months), Ba Zi, Zi Wei Dou Shu |
+| Vedic | panchanga (angas with their times, amanta months with adhika, samvatsara), nakshatras, twenty vargas, Vimshottari dasha |
 | Bindings | Python (PyO3, abi3 wheels) and WebAssembly (npm), same JSON as the Rust types |
 
 Rough timings on de440s from disk (release build, one core): a natal chart 2.9 ms, of
@@ -59,6 +60,10 @@ which 2.2 ms is the sunrise search for the planetary hours; a horary chart 4.6 m
 - **Declinations**: parallels and contraparallels.
 - **Returns and progressions**: solar and lunar returns and secondary progressions. The
   Chinese calendar's Sun-longitude search already finds the moments returns need.
+
+- **Vedic dasha in true sidereal solar years**, and the other dasha systems (Yogini,
+  Chara). The sidereal year needs the Sun from the ephemeris at every period boundary.
+- **Ashtakavarga and shadbala**, from the placements `jyotish` already computes.
 
 ### Verification
 

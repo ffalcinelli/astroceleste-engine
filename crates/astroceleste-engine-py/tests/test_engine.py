@@ -131,6 +131,20 @@ def test_node_type_selects_the_lunar_nodes(excerpt):
     assert abs(north(mean) - north(true)) > 1.0
 
 
+def test_vedic_calendar_and_jyotish(excerpt):
+    panchanga = excerpt.vedic_calendar("2000-03-15T06:00:00Z", 28.61, 77.21)
+    assert panchanga["ayanamsa"] == "lahiri" and 1 <= panchanga["tithi"]["number"] <= 30
+    chart = excerpt.chart("2000-03-15T06:00:00Z", 28.61, 77.21, vedic_calendar=True)
+    assert chart["vedic_calendar"] == panchanga
+    assert excerpt.vedic_calendar("1990-01-01T00:00:00Z", 28.61, 77.21) is None
+    reading = ace.jyotish(chart, "2000-03-15T06:00:00Z", {"vargas": [9], "dasha_depth": 1})
+    assert reading["grahas"][0]["name"] == "Ascendant"
+    assert [v["code"] for v in reading["vargas"]] == ["D9"]
+    assert len(reading["vimshottari"]["periods"]) == 9
+    with pytest.raises(ValueError):
+        ace.jyotish(chart, "2000-03-15T06:00:00Z", {"ayanamsa": "nope"})
+
+
 def test_out_of_range_raises(excerpt):
     with pytest.raises(ace.EphemerisRangeError) as raised:
         excerpt.chart("2010-01-01T00:00:00Z", 41.9, 12.5)

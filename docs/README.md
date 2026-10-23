@@ -6,6 +6,8 @@
   chart carries, with the tables' sources and the two schemes (Lilly, Dorothean).
 - **[Chinese astrology](chinese.md)**: the Chinese calendar of a moment (solar terms,
   lunar months, leap months), and the Four Pillars (Ba Zi) and Zi Wei Dou Shu cast from it.
+- **[Vedic astrology](vedic.md)**: the panchanga of a moment (tithi, nakshatra, yoga,
+  karana, vara, month, year), and the nakshatras, vargas and Vimshottari dasha of a chart.
 - **[Ephemerides](ephemerides.md)**: the JPL kernels the engine reads, date coverage,
   loading kernels from files or memory, and cutting smaller excerpts for the web and mobile.
 - **[Accuracy](accuracy.md)**: how every number is verified against the reference

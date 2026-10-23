@@ -24,6 +24,7 @@ fn natal_charts_match_reference() {
             dignity_scheme: "lilly",
             node_type: "mean",
             chinese_calendar: false,
+            vedic_calendar: false,
         };
         let chart = calculate_chart(&kernels, &req).unwrap();
         let mut actual = serde_json::to_value(&chart).unwrap();

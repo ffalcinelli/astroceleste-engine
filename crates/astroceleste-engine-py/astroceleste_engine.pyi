@@ -43,6 +43,7 @@ class Engine:
         dignity_scheme: str = "lilly",
         node_type: str = "mean",
         chinese_calendar: bool = False,
+        vedic_calendar: bool = False,
     ) -> dict[str, Any]: ...
     def horary(
         self,
@@ -57,6 +58,7 @@ class Engine:
         node_type: str = "mean",
         quesited_house: int | None = None,
         chinese_calendar: bool = False,
+        vedic_calendar: bool = False,
     ) -> dict[str, Any]: ...
     def election(
         self,
@@ -71,6 +73,7 @@ class Engine:
         dignity_scheme: str = "lilly",
         node_type: str = "mean",
         chinese_calendar: bool = False,
+        vedic_calendar: bool = False,
     ) -> dict[str, Any]:
         """A chart with its electional assessment under `election_data`."""
     def elections(
@@ -87,6 +90,8 @@ class Engine:
         """The best electional windows from `start` to `end` (at most 92 days)."""
     def chinese_calendar(self, moment: Moment) -> dict[str, Any] | None:
         """The Chinese calendar around a moment, or None outside the kernels' coverage."""
+    def vedic_calendar(self, moment: Moment, latitude: float, longitude: float) -> dict[str, Any] | None:
+        """The panchanga at a moment and place, or None outside the kernels' coverage."""
     def transit(
         self,
         natal_planets: list[dict[str, Any]],
@@ -154,3 +159,5 @@ def zi_wei(
     date: str | None = None,
 ) -> dict[str, Any]:
     """The Zi Wei Dou Shu chart of a birth from its Chinese calendar (a chart's chinese_calendar)."""
+def jyotish(chart: dict[str, Any], moment: Moment, options: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The Vedic reading of a chart: sidereal placements, nakshatras, vargas, Vimshottari dasha."""

@@ -20,11 +20,13 @@ snake_case keys.
 | `degree_quality_table` | `degree_quality_table` | `degreeQualityTable` |
 | `bazi` | `bazi` | `bazi` |
 | `zi_wei` | `zi_wei` | `ziWei` |
+| `vedic_calendar` | `Engine.vedic_calendar` | `engine.vedicCalendar` |
+| `jyotish` | `jyotish` | `jyotish` |
 | `UtcInstant::julian_day` | `julian_day` | `julianDay` |
 | `Spk::excerpt` | `excerpt_kernel` | `excerptKernel` |
 | `KernelSet::kernels` / `coverage` / `for_jd` | `Engine.kernels` / `coverage` / `supports` | `engine.kernels` / `coverage` / `supports` |
 
-The chart, horary, transit and election calculations and the Chinese calendar need JPL
+The chart, horary, transit and election calculations and the Chinese and Vedic calendars need JPL
 kernels (see [Ephemerides](ephemerides.md)). The other entry points work on already
 computed charts or calendars, or on plain longitudes, and do not.
 
@@ -42,6 +44,7 @@ computed charts or calendars, or on plain longitudes, and do not.
 | dignity scheme | `lilly` (Lilly's triplicities and terms) or `dorothean` (three triplicity lords, Egyptian bounds), see [dignities](dignities.md) | `lilly` |
 | node type | `mean` (IAU polynomial) or `true` (osculating, from the Moon's state vector; `osculating` is accepted too) lunar nodes | `mean` |
 | chinese calendar | also compute the Chinese calendar of the moment (`chinese_calendar` key), see [Chinese astrology](chinese.md) | `false` |
+| vedic calendar | also compute the panchanga of the moment and place (`vedic_calendar` key), see [Vedic astrology](vedic.md) | `false` |
 
 Times are always UTC. Convert civil time (with its time zone and daylight saving time) to
 UTC before calling the engine. Only the first letter of the house system is used, and
@@ -159,6 +162,7 @@ A chart is an object with these keys, in this order:
 | `antiscia` | antiscion and contra-antiscion contacts: `{body1, body2, kind, orb}` |
 | `planetary_hours` | the planetary day and hour (left out of transit skies) |
 | `chinese_calendar` | only when requested: solar terms, lunar months, equation of time (see [Chinese astrology](chinese.md)) |
+| `vedic_calendar` | only when requested: the panchanga (see [Vedic astrology](vedic.md)) |
 
 The keys from `sect` on and each planet's `condition` are additions to the reference
 implementation; [dignities](dignities.md) gives the tables and rules of the first five.
@@ -270,6 +274,10 @@ A span of more than 1000 years (`MAX_TIME_LORDS_YEARS`) is an `invalid_input` er
 ## Chinese astrology
 
 A chart requested with `chinese_calendar` carries the Chinese calendar of its moment: the solar terms, the lunar months and the equation of time. `chinese_calendar(moment)` (Python `Engine.chinese_calendar`, JavaScript `engine.chineseCalendar`) computes it on its own; it is `None`/`null` when the kernels do not cover the year or so of ephemeris it needs. `bazi(calendar, birth, longitude, utc_offset_minutes, …)` (no kernel needed) casts the Four Pillars from it, with the hidden stems, Ten Gods, NaYin, element balance and luck pillars, and with `date` the pillars of that date. `zi_wei(…)` (JavaScript `ziWei`, no kernel needed either) casts the Zi Wei Dou Shu chart: the twelve palaces, the five-element bureau, the fourteen major and fourteen auxiliary stars with their brightness, the 38 minor stars and the cycles of twelve gods, the Four Transformations natal and flying, the decade and small limits, and with `year` the horoscope of that year. The rules and the result are described in [Chinese astrology](chinese.md).
+
+## Vedic astrology
+
+A chart requested with `vedic_calendar` carries the panchanga of its moment and place: the sunrise that begins the Vedic day and its weekday, the tithi, nakshatra, yoga and karana running then with their start and end, the lunar month (amanta and purnimanta, adhika) and the year. `vedic_calendar(moment, latitude, longitude)` (Python `Engine.vedic_calendar`, JavaScript `engine.vedicCalendar`) computes it on its own; it is `None`/`null` outside the kernels. `jyotish(chart, birth, options)` (no kernel needed) reads a computed chart the Vedic way: sidereal placements with their nakshatras, the twenty vargas and the Vimshottari dasha. See [Vedic astrology](vedic.md).
 
 ## Elections
 

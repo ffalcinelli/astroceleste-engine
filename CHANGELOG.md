@@ -17,14 +17,21 @@ version is 0.0.x the API is experimental and any release may break it.
   `horary`, `election` and `transit`; WASM requests take `node_type`.
 - Sripati house system (`S`): Porphyry's cusps as the middles of the houses, the cusps
   halfway between them.
+- Vedic astrology (docs/vedic.md): `vedic_calendar` (also `vedic_calendar` on chart
+  requests), the panchanga of a moment and place: sunrise, vara, tithi, nakshatra, yoga and
+  karana with their start and end, the amanta and purnimanta month with adhika months,
+  ritu, ayana, samvatsara and the Shaka and Vikram years; and `jyotish` (no kernel
+  needed), a chart's sidereal placements with nakshatras and vargottama, the twenty vargas
+  D1-D60 and the Vimshottari dasha to five levels. Python `Engine.vedic_calendar`,
+  `jyotish`, `vedic_calendar=`; WASM `engine.vedicCalendar`, `jyotish`.
 
-Both are ported from Priyank Gahtori's Khagole fork
-(https://github.com/PriyankGahtori/Khagole).
+The true node, Sripati houses, nakshatras and vargas are ported from Priyank Gahtori's
+Khagole fork (https://github.com/PriyankGahtori/Khagole).
 
 ### Changed
 
-- `ChartRequest` has a new public field (`node_type`), and `planets_and_sidereal_time`
-  takes a `NodeType`.
+- `ChartRequest` has new public fields (`node_type`, `vedic_calendar`), and
+  `planets_and_sidereal_time` takes a `NodeType`.
 
 ## [0.0.13]
 

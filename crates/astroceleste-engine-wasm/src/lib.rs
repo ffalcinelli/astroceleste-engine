@@ -18,8 +18,9 @@ use astroceleste_engine::{
     calculate_horary_chart, calculate_synastry, calculate_transit_chart,
     chart_dignities as core_chart_dignities, chinese_calendar as core_chinese_calendar,
     degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
-    search_elections, time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions,
-    ChartRequest, ChineseCalendar, ElectionCriteria, EngineError, UtcInstant, ZiWeiOptions,
+    jyotish as core_jyotish, search_elections, time_lords as core_time_lords,
+    vedic_calendar as core_vedic_calendar, zi_wei as core_zi_wei, BaziOptions, ChartRequest,
+    ChineseCalendar, ElectionCriteria, EngineError, JyotishOptions, UtcInstant, ZiWeiOptions,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -69,7 +70,7 @@ fn default_node_type() -> String {
 }
 
 /// `{ utc, latitude, longitude, house_system?, zodiac_type?, ayanamsa?, orb_settings?,
-/// dignity_scheme?, node_type?, quesited_house?, chinese_calendar? }`
+/// dignity_scheme?, node_type?, quesited_house?, chinese_calendar?, vedic_calendar? }`
 #[derive(Deserialize)]
 struct Request {
     utc: String,
@@ -94,6 +95,9 @@ struct Request {
     /// Also compute the Chinese calendar of the moment (not for transits).
     #[serde(default)]
     chinese_calendar: bool,
+    /// Also compute the panchanga of the moment and place (not for transits).
+    #[serde(default)]
+    vedic_calendar: bool,
 }
 
 impl Request {
@@ -115,6 +119,7 @@ impl Request {
             dignity_scheme: &self.dignity_scheme,
             node_type: &self.node_type,
             chinese_calendar: self.chinese_calendar,
+            vedic_calendar: self.vedic_calendar,
         }
     }
 }
@@ -229,6 +234,23 @@ impl Engine {
         to_js(&core_chinese_calendar(&self.kernels, instant).map_err(engine_error)?)
     }
 
+    /// The panchanga at `utc` (ISO 8601) for a place: sunrise, vara, tithi, nakshatra,
+    /// yoga, karana, lunar month and year; `null` when the loaded kernels do not cover the
+    /// lunar month around it.
+    #[wasm_bindgen(js_name = vedicCalendar)]
+    pub fn vedic_calendar(
+        &self,
+        utc: &str,
+        latitude: f64,
+        longitude: f64,
+    ) -> Result<JsValue, JsValue> {
+        let instant = UtcInstant::parse(utc).map_err(invalid)?;
+        to_js(
+            &core_vedic_calendar(&self.kernels, instant, latitude, longitude)
+                .map_err(engine_error)?,
+        )
+    }
+
     /// The sky of `request`, with its cross-aspects to `natalPlanets`.
     pub fn transit(&self, natal_planets: JsValue, request: JsValue) -> Result<JsValue, JsValue> {
         let natal: Value = from_js(natal_planets)?;
@@ -332,6 +354,19 @@ pub fn chart_dignities(chart: JsValue, scheme: &str) -> Result<JsValue, JsValue>
 
 fn yes() -> bool {
     true
+}
+
+/// The Vedic reading of a computed `chart` born at `birth` (ISO 8601 UTC): sidereal
+/// placements with their nakshatras, the vargas and the Vimshottari dasha. `options`:
+/// `{ ayanamsa?, outer_planets?, vargas?, hora?, dasha_year?, dasha_path?, dasha_depth?,
+/// date? }`, or `undefined` for the defaults. No kernel is needed.
+#[wasm_bindgen]
+pub fn jyotish(chart: JsValue, birth: &str, options: JsValue) -> Result<JsValue, JsValue> {
+    let chart: Value = from_js(chart)?;
+    let options = optional(options)?.unwrap_or_else(|| Value::Object(Default::default()));
+    let options: JyotishOptions = serde_json::from_value(options).map_err(invalid)?;
+    let birth = UtcInstant::parse(birth).map_err(invalid)?;
+    to_js(&core_jyotish(&chart, birth, &options).map_err(engine_error)?)
 }
 
 /// `{ solar_time?, zi_hour?, sex?, luck_pillars?, year?, date? }`

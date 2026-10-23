@@ -12,8 +12,9 @@ use astroceleste_engine::{
     calculate_horary_chart, calculate_synastry, calculate_transit_chart,
     chart_dignities as core_chart_dignities, chinese_calendar as core_chinese_calendar,
     degree_qualities as core_degree_qualities, degree_quality_table as core_degree_quality_table,
-    search_elections, time_lords as core_time_lords, zi_wei as core_zi_wei, BaziOptions,
-    ChartRequest, ChineseCalendar, ElectionCriteria, EngineError as CoreError, UtcInstant,
+    jyotish as core_jyotish, search_elections, time_lords as core_time_lords,
+    vedic_calendar as core_vedic_calendar, zi_wei as core_zi_wei, BaziOptions, ChartRequest,
+    ChineseCalendar, ElectionCriteria, EngineError as CoreError, JyotishOptions, UtcInstant,
     ZiWeiOptions,
 };
 use pyo3::create_exception;
@@ -129,6 +130,7 @@ struct Request {
     dignity_scheme: String,
     node_type: String,
     chinese_calendar: bool,
+    vedic_calendar: bool,
 }
 
 impl Request {
@@ -153,6 +155,7 @@ impl Request {
             dignity_scheme: "lilly".to_string(),
             node_type: "mean".to_string(),
             chinese_calendar: false,
+            vedic_calendar: false,
         })
     }
 
@@ -171,6 +174,11 @@ impl Request {
         self
     }
 
+    fn with_vedic_calendar(mut self, vedic_calendar: bool) -> Self {
+        self.vedic_calendar = vedic_calendar;
+        self
+    }
+
     fn as_chart_request(&self) -> ChartRequest<'_> {
         ChartRequest {
             instant: self.instant,
@@ -183,6 +191,7 @@ impl Request {
             dignity_scheme: &self.dignity_scheme,
             node_type: &self.node_type,
             chinese_calendar: self.chinese_calendar,
+            vedic_calendar: self.vedic_calendar,
         }
     }
 }
@@ -242,7 +251,7 @@ impl Engine {
 
     /// The chart of a moment and place, as the API's chart dict; with
     /// `chinese_calendar`, also the Chinese calendar of the moment.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", chinese_calendar=false))]
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", chinese_calendar=false, vedic_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn chart(
         &self,
@@ -257,6 +266,7 @@ impl Engine {
         dignity_scheme: &str,
         node_type: &str,
         chinese_calendar: bool,
+        vedic_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let req = Request::new(
             moment,
@@ -269,7 +279,8 @@ impl Engine {
         )?
         .with_dignity_scheme(dignity_scheme)
         .with_node_type(node_type)
-        .with_chinese_calendar(chinese_calendar);
+        .with_chinese_calendar(chinese_calendar)
+        .with_vedic_calendar(vedic_calendar);
         let chart = py
             .detach(|| calculate_chart(&self.kernels, &req.as_chart_request()))
             .map_err(to_py_err)?;
@@ -278,7 +289,7 @@ impl Engine {
 
     /// A chart with its horary analysis under the `horary_data` key; `quesited_house`
     /// (1-12) is the house of the matter asked about.
-    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", quesited_house=None, chinese_calendar=false))]
+    #[pyo3(signature = (moment, latitude, longitude, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", quesited_house=None, chinese_calendar=false, vedic_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn horary(
         &self,
@@ -294,6 +305,7 @@ impl Engine {
         node_type: &str,
         quesited_house: Option<u8>,
         chinese_calendar: bool,
+        vedic_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let req = Request::new(
             moment,
@@ -306,7 +318,8 @@ impl Engine {
         )?
         .with_dignity_scheme(dignity_scheme)
         .with_node_type(node_type)
-        .with_chinese_calendar(chinese_calendar);
+        .with_chinese_calendar(chinese_calendar)
+        .with_vedic_calendar(vedic_calendar);
         let chart = py
             .detach(|| {
                 calculate_horary_chart(&self.kernels, &req.as_chart_request(), quesited_house)
@@ -316,7 +329,7 @@ impl Engine {
     }
 
     /// A chart with its electional assessment under the `election_data` key.
-    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", chinese_calendar=false))]
+    #[pyo3(signature = (moment, latitude, longitude, criteria=None, house_system="P", zodiac_type="tropical", ayanamsa="galcent_0sag", orb_settings=None, dignity_scheme="lilly", node_type="mean", chinese_calendar=false, vedic_calendar=false))]
     #[allow(clippy::too_many_arguments)]
     fn election(
         &self,
@@ -332,6 +345,7 @@ impl Engine {
         dignity_scheme: &str,
         node_type: &str,
         chinese_calendar: bool,
+        vedic_calendar: bool,
     ) -> PyResult<Py<PyAny>> {
         let criteria = to_criteria(criteria)?;
         let req = Request::new(
@@ -345,7 +359,8 @@ impl Engine {
         )?
         .with_dignity_scheme(dignity_scheme)
         .with_node_type(node_type)
-        .with_chinese_calendar(chinese_calendar);
+        .with_chinese_calendar(chinese_calendar)
+        .with_vedic_calendar(vedic_calendar);
         let chart = py
             .detach(|| calculate_election_chart(&self.kernels, &req.as_chart_request(), &criteria))
             .map_err(to_py_err)?;
@@ -390,6 +405,23 @@ impl Engine {
         let instant = to_instant(moment)?;
         let calendar = py
             .detach(|| core_chinese_calendar(&self.kernels, instant))
+            .map_err(to_py_err)?;
+        to_py(py, &calendar)
+    }
+
+    /// The panchanga at `moment` for a place (sunrise, vara, tithi, nakshatra, yoga,
+    /// karana, lunar month, year), or None when the loaded kernels do not cover the lunar
+    /// month around it.
+    fn vedic_calendar(
+        &self,
+        py: Python<'_>,
+        moment: &Bound<'_, PyAny>,
+        latitude: f64,
+        longitude: f64,
+    ) -> PyResult<Py<PyAny>> {
+        let instant = to_instant(moment)?;
+        let calendar = py
+            .detach(|| core_vedic_calendar(&self.kernels, instant, latitude, longitude))
             .map_err(to_py_err)?;
         to_py(py, &calendar)
     }
@@ -530,6 +562,27 @@ fn chart_dignities(
     to_py(py, &judged)
 }
 
+/// The Vedic reading of a computed `chart` born at `moment`: sidereal placements with
+/// their nakshatras, the vargas and the Vimshottari dasha. `options` is a dict of
+/// `ayanamsa`, `outer_planets`, `vargas`, `hora`, `dasha_year`, `dasha_path`,
+/// `dasha_depth` and `date` (all optional). No kernel is needed.
+#[pyfunction]
+#[pyo3(signature = (chart, moment, options=None))]
+fn jyotish(
+    py: Python<'_>,
+    chart: &Bound<'_, PyAny>,
+    moment: &Bound<'_, PyAny>,
+    options: Option<&Bound<'_, PyAny>>,
+) -> PyResult<Py<PyAny>> {
+    let chart = to_value(chart)?;
+    let options: JyotishOptions = match optional_value(options)? {
+        Some(value) => serde_json::from_value(value).map_err(invalid_input)?,
+        None => JyotishOptions::default(),
+    };
+    let reading = core_jyotish(&chart, to_instant(moment)?, &options).map_err(to_py_err)?;
+    to_py(py, &reading)
+}
+
 /// The Four Pillars of a birth at `moment`, at `longitude` (degrees east) where civil time
 /// was `utc_offset_minutes` ahead of UTC, from its Chinese `calendar` (the chart's
 /// `chinese_calendar`). No kernel is needed.
@@ -625,6 +678,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(chart_dignities, m)?)?;
     m.add_function(wrap_pyfunction!(bazi, m)?)?;
     m.add_function(wrap_pyfunction!(zi_wei, m)?)?;
+    m.add_function(wrap_pyfunction!(jyotish, m)?)?;
     m.add("EngineError", m.py().get_type::<EngineError>())?;
     m.add(
         "EphemerisRangeError",

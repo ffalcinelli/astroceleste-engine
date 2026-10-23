@@ -39,8 +39,8 @@ pub struct TransitChart {
 }
 
 /// The sky at `req` (relocatable), with its cross-aspects to `natal_planets`
-/// (`calculate_transit_chart`). `req.chinese_calendar` is ignored: a transit chart has
-/// no calendar.
+/// (`calculate_transit_chart`). `req.chinese_calendar` and `req.vedic_calendar` are
+/// ignored: a transit chart has no calendar.
 pub fn calculate_transit_chart(
     kernels: &KernelSet,
     natal_planets: &Value,
@@ -49,6 +49,7 @@ pub fn calculate_transit_chart(
     let natal = points_from_json(natal_planets)?;
     let req = &ChartRequest {
         chinese_calendar: false,
+        vedic_calendar: false,
         ..req.clone()
     };
     let chart = chart_without_hours(kernels, req)?;

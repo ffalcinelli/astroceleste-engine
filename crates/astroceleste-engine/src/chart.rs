@@ -22,6 +22,7 @@ use crate::minor_bodies::{is_minor_body, minor_body_symbol};
 use crate::planets::{planets_and_sidereal_time, NodeType};
 use crate::symbolic::symbolic_degree_number;
 use crate::temperament::{temperament, Temperament};
+use crate::vedic::calendar::{vedic_calendar, VedicCalendar};
 use crate::zodiac::{
     ayanamsa, ayanamsa_info, determine_house, longitude_to_zodiac, AyanamsaInfo, DEFAULT_AYANAMSA,
 };
@@ -81,6 +82,9 @@ pub struct ChartRequest<'a> {
     /// Also compute the [`ChineseCalendar`] of the moment (default `false`): a few dozen
     /// solar-term and new-moon searches.
     pub chinese_calendar: bool,
+    /// Also compute the [`VedicCalendar`] (panchanga) of the moment and place (default
+    /// `false`): a sunrise and a dozen anga and new-moon searches.
+    pub vedic_calendar: bool,
 }
 
 impl<'a> ChartRequest<'a> {
@@ -97,6 +101,7 @@ impl<'a> ChartRequest<'a> {
             dignity_scheme: "lilly",
             node_type: "mean",
             chinese_calendar: false,
+            vedic_calendar: false,
         }
     }
 
@@ -220,6 +225,9 @@ pub struct Chart {
     /// The Chinese calendar of the moment, when requested and the kernels cover it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chinese_calendar: Option<ChineseCalendar>,
+    /// The panchanga of the moment and place, when requested and the kernels cover it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vedic_calendar: Option<VedicCalendar>,
 }
 
 fn empty_object_if_none<S: Serializer>(v: &Option<LunarStatus>, s: S) -> Result<S::Ok, S::Error> {
@@ -490,6 +498,11 @@ pub(crate) fn chart_without_hours(
         planetary_hours: None,
         chinese_calendar: if req.chinese_calendar {
             chinese_calendar(kernels, req.instant)?
+        } else {
+            None
+        },
+        vedic_calendar: if req.vedic_calendar {
+            vedic_calendar(kernels, req.instant, req.latitude, req.longitude)?
         } else {
             None
         },

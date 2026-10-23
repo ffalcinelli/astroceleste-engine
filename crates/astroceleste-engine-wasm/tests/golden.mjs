@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
 const require = createRequire(import.meta.url);
-const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable, timeLords, chartDignities, bazi, ziWei } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
+const { Engine, synastry, derivedChart, julianDay, excerptKernel, degreeQualities, degreeQualityTable, timeLords, chartDignities, bazi, ziWei, jyotish } = require(join(here, "../pkg-node/astroceleste_engine_wasm.js"));
 
 const PRIVATE = new Set(["degree_symbol", "degree_symbols", "condition"]);
 // Chart keys added after the reference implementation, absent from the fixtures.
@@ -72,6 +72,19 @@ assert.equal(chart.node_type, "mean");
   const trueNode = small.chart({ utc: "2000-06-01T12:00:00Z", latitude: 41.9, longitude: 12.5, node_type: "true" });
   assert.equal(trueNode.node_type, "true");
   assert.ok(Math.abs(north(trueNode) - 115.40072) < 2 / 3600); // Swiss Ephemeris TRUE_NODE
+}
+{
+  // The panchanga (kernel) and the Vedic reading (no kernel).
+  const p = small.vedicCalendar("2000-03-15T06:00:00Z", 28.61, 77.21);
+  assert.equal(p.ayanamsa, "lahiri");
+  assert.ok(p.tithi.number >= 1 && p.tithi.number <= 30 && p.masa.amanta);
+  const vedicChart = small.chart({ utc: "2000-03-15T06:00:00Z", latitude: 28.61, longitude: 77.21, vedic_calendar: true });
+  assert.deepEqual(vedicChart.vedic_calendar, p);
+  const reading = jyotish(vedicChart, "2000-03-15T06:00:00Z", { vargas: [9], dasha_depth: 1 });
+  assert.equal(reading.grahas[0].name, "Ascendant");
+  assert.deepEqual(reading.vargas.map((v) => v.code), ["D9"]);
+  assert.equal(reading.vimshottari.periods.length, 9);
+  assert.throws(() => jyotish(vedicChart, "2000-03-15T06:00:00Z", { ayanamsa: "nope" }), (e) => e.code === "invalid_input");
 }
 assert.throws(() => small.chart({ utc: "2010-01-01T00:00:00Z", latitude: 0, longitude: 0 }), (e) => e.code === "ephemeris_out_of_range");
 assert.throws(() => small.chart({ utc: "nope", latitude: 0, longitude: 0 }), (e) => e.code === "invalid_input");

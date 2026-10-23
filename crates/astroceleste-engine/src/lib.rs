@@ -42,6 +42,8 @@
 //! | [`chinese_calendar`] | the [`ChineseCalendar`] around a moment: solar terms, lunar months, equation of time (also on a chart, with [`ChartRequest::chinese_calendar`]) |
 //! | [`bazi`] | the Four Pillars ([`Bazi`]) of a birth from its Chinese calendar: hidden stems, Ten Gods, NaYin, element balance, luck pillars (no kernel needed) |
 //! | [`zi_wei`] | the Zi Wei Dou Shu chart ([`ZiWei`]) of a birth from its Chinese calendar: palaces, bureau, the 14 major and 14 auxiliary stars with brightness, the Four Transformations, minor stars and cycles of gods, flying transformations, decade and small limits and a year's horoscope (no kernel needed) |
+//! | [`jyotish`] | the Vedic reading ([`Jyotish`]) of a chart: sidereal placements with their [`Nakshatra`]s, the divisional charts D1-D60 and the Vimshottari dasha (no kernel needed) |
+//! | [`vedic_calendar`] | the panchanga ([`VedicCalendar`]) of a moment and place: sunrise, vara, tithi, nakshatra, yoga, karana, lunar month, samvatsara (also on a chart, with [`ChartRequest::vedic_calendar`]) |
 //!
 //! Every result implements [`serde::Serialize`] and serializes to the JSON of the
 //! Astroceleste API, with the same key order and the same integer vs float types. The
@@ -138,6 +140,7 @@ mod lunar;
 mod minor_bodies;
 mod planets;
 mod pyfloat;
+mod search;
 mod symbolic;
 mod temperament;
 #[cfg(test)]
@@ -145,6 +148,7 @@ mod test_kernel;
 #[doc(hidden)] // exposed for the reduction tests; not part of the API
 pub mod time;
 mod time_lords;
+mod vedic;
 mod zodiac;
 
 pub use aspects::{Aspect, CrossAspect};
@@ -185,3 +189,10 @@ pub use lunar::LunarStatus;
 pub use minor_bodies::{is_minor_body, MINOR_BODIES};
 pub use temperament::{Factor, Qualities, Scores, Temperament};
 pub use time_lords::{time_lords, Firdaria, Period, Profection, TimeLords, MAX_TIME_LORDS_YEARS};
+pub use vedic::calendar::{vedic_calendar, Anga, Masa, Vara, VedicCalendar};
+pub use vedic::dasha::{DashaPeriod, Vimshottari, MAX_DASHA_DEPTH, MAX_DASHA_LEVELS};
+pub use vedic::varga::VARGAS;
+pub use vedic::{
+    jyotish, nakshatra, Graha, Jyotish, JyotishOptions, Nakshatra, Varga, VargaPlacement,
+    NAKSHATRAS,
+};
