@@ -26,7 +26,15 @@ const stripHorary = (h) => {
   const { judgment, ...rest } = h;
   return { ...rest, strictures: (rest.strictures || []).filter((s) => !ADDED_STRICTURES.has(s.code)) };
 };
+// Minor bodies, which the fixtures predate (tests/minor_bodies.rs).
+const MINOR = new Set(["Ceres", "Pallas", "Juno", "Vesta", "Astraea", "Eris", "Sedna", "Makemake", "Orcus", "Ixion"]);
+const namesMinor = (x) => typeof x === "string" ? MINOR.has(x) : x && typeof x === "object" && !Array.isArray(x) && Object.values(x).some((y) => MINOR.has(y));
+const stripMinor = (v) =>
+  Array.isArray(v) ? v.filter((x) => !namesMinor(x)).map(stripMinor)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([k]) => !MINOR.has(k)).map(([k, x]) => [k, stripMinor(x)]))
+  : v;
 const strip = (v) => {
+  v = stripMinor(v);
   if (!v || typeof v !== "object" || Array.isArray(v)) return stripNested(v);
   const top = Object.fromEntries(Object.entries(v).filter(([k]) => !ADDED.has(k)));
   if (top.horary_data) top.horary_data = stripHorary(top.horary_data);

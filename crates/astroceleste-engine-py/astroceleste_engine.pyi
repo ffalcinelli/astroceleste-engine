@@ -5,6 +5,8 @@ from os import PathLike
 from typing import Any
 
 __version__: str
+# Bodies with a JPL Horizons table (1849-2151), in chart order after Lilith.
+MINOR_BODIES: list[str]
 
 Moment = datetime | str
 """An aware (or naive, taken as UTC) datetime, or an ISO 8601 string."""

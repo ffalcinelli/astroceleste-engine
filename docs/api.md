@@ -112,7 +112,9 @@ Only these keys are read, and the orb tables are merged key by key over the defa
   "planet_orbs": { "Sun": 15.0, "Moon": 12.0, "Mercury": 7.0, "Venus": 7.0, "Mars": 8.0,
                    "Jupiter": 9.0, "Saturn": 9.0, "Uranus": 5.0, "Neptune": 5.0,
                    "Pluto": 5.0, "North Node": 5.0, "South Node": 5.0, "Chiron": 5.0,
-                   "Lilith": 5.0, "Ascendant": 5.0, "Midheaven": 5.0 }
+                   "Lilith": 5.0, "Ceres": 3.0, "Pallas": 3.0, "Juno": 3.0, "Vesta": 3.0,
+                   "Astraea": 3.0, "Eris": 3.0, "Sedna": 3.0, "Makemake": 3.0,
+                   "Orcus": 3.0, "Ixion": 3.0, "Ascendant": 5.0, "Midheaven": 5.0 }
 }
 ```
 
@@ -123,6 +125,10 @@ Only these keys are read, and the orb tables are merged key by key over the defa
   conjunction;
 - `moiety_hybrid` (default): the moiety, capped by the aspect's orb;
 - anything else: the aspect's orb alone.
+
+Whatever the method, an aspect of a minor body (Ceres … Ixion) is allowed no more than that
+body's own `planet_orbs` entry, and two different minor bodies form no aspect (in cross
+aspects a body still meets itself, as in a Ceres return).
 
 The settings in effect are echoed back in the chart's `orb_settings`.
 
@@ -136,8 +142,8 @@ A chart is an object with these keys, in this order:
 | `ayanamsa`, `ayanamsa_name`, `ayanamsa_value`, `ayanamsa_formatted` | sidereal reference at the chart moment (`null` for tropical charts) |
 | `precession_rate_arcsec_yr` | precession rate used for the fixed stars |
 | `orb_settings` | the orb settings in effect |
-| `planets` | Sun to Pluto, North and South Node, Chiron, Lilith, Ascendant, Midheaven |
-| `unavailable_bodies` | expected bodies that could not be computed (Chiron outside 1849–2151) |
+| `planets` | Sun to Pluto, North and South Node, Chiron, Lilith, the minor bodies (Ceres, Pallas, Juno, Vesta, Astraea, Eris, Sedna, Makemake, Orcus, Ixion; `MINOR_BODIES`), Ascendant, Midheaven |
+| `unavailable_bodies` | expected bodies that could not be computed (Chiron or a minor body outside 1849–2151) |
 | `houses` | the twelve cusps |
 | `aspects` | aspects between chart points, then fixed-star conjunctions |
 | `fixed_stars` | fixed stars conjunct a chart point |

@@ -4,6 +4,7 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 
 use crate::error::EngineError;
+use crate::minor_bodies::is_minor_body;
 use crate::pyfloat;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -108,6 +109,16 @@ pub fn default_orb_settings() -> Map<String, Value> {
             "South Node": 5.0,
             "Chiron": 5.0,
             "Lilith": 5.0,
+            "Ceres": 3.0,
+            "Pallas": 3.0,
+            "Juno": 3.0,
+            "Vesta": 3.0,
+            "Astraea": 3.0,
+            "Eris": 3.0,
+            "Sedna": 3.0,
+            "Makemake": 3.0,
+            "Orcus": 3.0,
+            "Ixion": 3.0,
             "Ascendant": 5.0,
             "Midheaven": 5.0,
         },
@@ -236,6 +247,19 @@ impl OrbSettings {
 
     /// `get_effective_max_orb` for two bodies and an aspect.
     pub fn max_orb(&self, body1: &str, body2: &str, aspect: &str) -> Result<f64, EngineError> {
+        let mut orb = self.method_orb(body1, body2, aspect)?;
+        // A minor body's own orb is the most any of its aspects allows, whatever the method:
+        // under moiety methods a luminary would otherwise lend it a planet's orb.
+        for body in [body1, body2] {
+            if is_minor_body(body) {
+                orb = orb.min(pyfloat::round(self.lookup("planet_orbs", body, 3.0)?, 2));
+            }
+        }
+        Ok(orb)
+    }
+
+    /// The largest orb the orb method allows for an aspect between two bodies.
+    fn method_orb(&self, body1: &str, body2: &str, aspect: &str) -> Result<f64, EngineError> {
         let method = self.0.get("method").and_then(Value::as_str).unwrap_or("");
         let default_aspect_orb = self.lookup("aspect_orbs", aspect, 8.0)?;
         match method {
@@ -354,12 +378,19 @@ fn find_aspect(
     Ok(None)
 }
 
-/// Aspects between every pair of chart points, skipping the nodal axis.
+/// Two different minor bodies: their contacts are slow and generational, so they form no
+/// aspect. A body to itself across charts (a Ceres return in transits) still does.
+fn is_minor_pair(a: &str, b: &str) -> bool {
+    a != b && is_minor_body(a) && is_minor_body(b)
+}
+
+/// Aspects between every pair of chart points, skipping the nodal axis and pairs of minor
+/// bodies.
 pub fn natal_aspects(points: &[Point], orbs: &OrbSettings) -> Result<Vec<Aspect>, EngineError> {
     let mut out = Vec::new();
     for (i, p1) in points.iter().enumerate() {
         for p2 in &points[i + 1..] {
-            if is_node_pair(p1.name, p2.name) {
+            if is_node_pair(p1.name, p2.name) || is_minor_pair(p1.name, p2.name) {
                 continue;
             }
             let diff = pyfloat::separation(p1.longitude, p2.longitude);
@@ -391,7 +422,7 @@ pub fn cross_aspects(
     let mut out = Vec::new();
     for o in overlay {
         for b in base {
-            if is_node_pair(o.name, b.name) {
+            if is_node_pair(o.name, b.name) || is_minor_pair(o.name, b.name) {
                 continue;
             }
             let diff = pyfloat::separation(o.longitude, b.longitude);
@@ -463,5 +494,47 @@ mod tests {
         let orbs = OrbSettings::merge(Some(&weighted)).unwrap();
         // moiety 13.5 × (6 / 8)
         assert_eq!(orbs.max_orb("Sun", "Moon", "Sextile").unwrap(), 10.12); // 10.125, ties to even
+    }
+
+    #[test]
+    fn a_minor_body_keeps_to_its_own_orb() {
+        let orbs = OrbSettings::default();
+        // Sun 15 + Ceres 3 → moiety 9 and Conjunction 8, but no more than Ceres's 3.
+        assert_eq!(orbs.max_orb("Sun", "Ceres", "Conjunction").unwrap(), 3.0);
+        assert_eq!(orbs.max_orb("Ceres", "Sun", "Semi-Sextile").unwrap(), 2.5);
+        // Chiron is not one of them: it keeps the method's orb.
+        assert_eq!(orbs.max_orb("Sun", "Chiron", "Conjunction").unwrap(), 8.0);
+        let custom = json!({"method": "fixed_aspect", "planet_orbs": {"Vesta": 1.5}});
+        let orbs = OrbSettings::merge(Some(&custom)).unwrap();
+        assert_eq!(orbs.max_orb("Vesta", "Mars", "Trine").unwrap(), 1.5);
+    }
+
+    #[test]
+    fn minor_bodies_do_not_aspect_each_other() {
+        let point = |name, longitude| Point { name, longitude };
+        let orbs = OrbSettings::default();
+        let points = [
+            point("Sun", 10.0),
+            point("Ceres", 10.5),
+            point("Vesta", 11.0),
+            point("Chiron", 10.2),
+        ];
+        let found: Vec<(String, String)> = natal_aspects(&points, &orbs)
+            .unwrap()
+            .into_iter()
+            .map(|a| (a.body1, a.body2))
+            .collect();
+        assert!(found.contains(&("Sun".into(), "Ceres".into())));
+        assert!(found.contains(&("Ceres".into(), "Chiron".into())));
+        assert!(!found.contains(&("Ceres".into(), "Vesta".into())));
+        // Across charts a body still meets itself (a return).
+        let cross = cross_aspects(
+            &[point("Ceres", 10.0)],
+            &[point("Ceres", 10.4), point("Vesta", 10.4)],
+            None,
+        )
+        .unwrap();
+        assert_eq!(cross.len(), 1);
+        assert_eq!(cross[0].body1, "Ceres");
     }
 }

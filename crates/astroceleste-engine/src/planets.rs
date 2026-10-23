@@ -1,12 +1,12 @@
 //! Planetary positions (`SkyfieldEngine.calculate_planets`): apparent geocentric
-//! longitudes of date from the JPL kernels, the mean lunar nodes, Chiron and Black Moon
-//! Lilith.
+//! longitudes of date from the JPL kernels, the mean lunar nodes, Chiron, Black Moon
+//! Lilith and the minor bodies (main asteroids and dwarf planets).
 
-use crate::chiron::chiron;
 use crate::ephemeris::observe::{apparent, ecliptic_latlon, observe};
 use crate::ephemeris::{Kernel, KernelSet};
 use crate::error::EngineError;
 use crate::frames::Orientation;
+use crate::minor_bodies::{chiron, minor_body, minor_body_symbol, MINOR_BODIES};
 use crate::pyfloat;
 use crate::time::Time;
 
@@ -60,7 +60,7 @@ pub fn planets_and_sidereal_time(
     shift: f64,
 ) -> Result<(Planets, f64), EngineError> {
     let sample = SpeedSample::at(kernels, jd)?;
-    let mut bodies = Vec::with_capacity(14);
+    let mut bodies = Vec::with_capacity(14 + MINOR_BODIES.len());
 
     for (name, code, symbol, can_retrograde) in TARGETS {
         let Ok((lat, lon, dist, speed)) = sample.observe(code) else {
@@ -134,6 +134,21 @@ pub fn planets_and_sidereal_time(
         speed: 0.1114,
         is_retrograde: false,
     });
+
+    // Minor bodies, from their tables (indexed by TT).
+    for name in MINOR_BODIES {
+        if let Some(m) = minor_body(name, sample.t.tt(), shift) {
+            bodies.push(BodyPosition {
+                name,
+                symbol: minor_body_symbol(name),
+                longitude: m.longitude,
+                latitude: 0.0,
+                distance: 0.0,
+                speed: m.speed,
+                is_retrograde: m.is_retrograde,
+            });
+        }
+    }
 
     Ok((Planets { bodies }, sample.orientation.gast_hours))
 }

@@ -8,6 +8,15 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+### Added
+
+- Minor bodies: Ceres, Pallas, Juno, Vesta, Astraea, Eris, Sedna, Makemake, Orcus and Ixion
+  in every chart (after Lilith, before the angles), from embedded tables sampled from JPL
+  Horizons for 1849-2151 (within 3″ of it; outside, `unavailable_bodies`). They form
+  aspects within their own orb (default 3°, whatever the orb method) but none with each
+  other, and take no part in fixed-star conjunctions or the temperament. `MINOR_BODIES` / `is_minor_body` are public, and `MINOR_BODIES` is exported
+  to Python.
+
 ## [0.0.12]
 
 ### Added

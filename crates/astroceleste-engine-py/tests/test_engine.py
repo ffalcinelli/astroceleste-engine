@@ -30,7 +30,29 @@ needs_full_kernel = pytest.mark.skipif(
 ADDED_STRICTURES = {"MOON_VIA_COMBUSTA", "MOON_LATE_DEGREES", "ASC_RULER_COMBUST"}
 
 
+# Minor bodies, which the fixtures predate (tests/minor_bodies.rs).
+MINOR_BODIES = set(ace.MINOR_BODIES)
+
+
+def names_minor_body(value):
+    if isinstance(value, str):
+        return value in MINOR_BODIES
+    return isinstance(value, dict) and any(
+        isinstance(v, str) and v in MINOR_BODIES for v in value.values()
+    )
+
+
+def strip_minor_bodies(value):
+    """Drop the minor bodies' placements, aspects, orbs and unavailable_bodies entries."""
+    if isinstance(value, dict):
+        return {k: strip_minor_bodies(v) for k, v in value.items() if k not in MINOR_BODIES}
+    if isinstance(value, list):
+        return [strip_minor_bodies(v) for v in value if not names_minor_body(v)]
+    return value
+
+
 def strip_private(value):
+    value = strip_minor_bodies(value)
     if isinstance(value, dict):
         value = {k: v for k, v in value.items() if k not in ADDED_CHART_KEYS}
         if isinstance(value.get("horary_data"), dict):

@@ -597,6 +597,7 @@ fn zi_wei(
 #[pymodule(name = "astroceleste_engine")]
 fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    m.add("MINOR_BODIES", astroceleste_engine::MINOR_BODIES.to_vec())?;
     m.add_class::<Engine>()?;
     m.add_function(wrap_pyfunction!(synastry, m)?)?;
     m.add_function(wrap_pyfunction!(derived_chart, m)?)?;

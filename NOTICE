@@ -33,6 +33,12 @@ Ephemeris data: NASA JPL planetary ephemerides (DE440s and others) are public do
 works of the U.S. Government, fetched at build/run time and not distributed here, except
 for a one-year DE440s excerpt used by the tests (tests/data/de440s_2000.bsp).
 
+The minor-body longitude tables (src/data/minor/*.bin) and their test check points
+(tests/fixtures/minor_bodies.json) are sampled from the JPL Horizons on-line solar system
+data and ephemeris computation service (https://ssd.jpl.nasa.gov/horizons/), Solar
+System Dynamics Group, Jet Propulsion Laboratory, California Institute of Technology, by
+scripts/fetch_minor_bodies.py.
+
 The Zi Wei Dou Shu star brightness table (src/chinese/ziwei.rs) is taken from iztro
 (https://github.com/SylarLong/iztro), used under the MIT license:
 

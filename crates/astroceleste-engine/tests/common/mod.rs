@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use astroceleste_engine::ephemeris::{Kernel, KernelSet, Spk};
-use astroceleste_engine::UtcInstant;
+use astroceleste_engine::{UtcInstant, MINOR_BODIES};
 use serde_json::Value;
 
 pub fn root() -> PathBuf {
@@ -77,6 +77,28 @@ pub fn strip_private(value: &mut Value) {
         }
     }
     strip_nested(value);
+    strip_minor_bodies(value);
+}
+
+/// Remove the minor bodies, which the fixtures predate (`tests/minor_bodies.rs`): their
+/// placements, aspects and orbs, anything else naming them, and their
+/// `unavailable_bodies` entries.
+pub fn strip_minor_bodies(value: &mut Value) {
+    let is_minor = |v: &Value| v.as_str().is_some_and(|s| MINOR_BODIES.contains(&s));
+    match value {
+        Value::Object(map) => {
+            map.retain(|k, _| !MINOR_BODIES.contains(&k.as_str()));
+            map.values_mut().for_each(strip_minor_bodies);
+        }
+        Value::Array(items) => {
+            items.retain(|item| match item {
+                Value::Object(map) => !map.values().any(is_minor),
+                other => !is_minor(other),
+            });
+            items.iter_mut().for_each(strip_minor_bodies);
+        }
+        _ => {}
+    }
 }
 
 fn strip_nested(value: &mut Value) {

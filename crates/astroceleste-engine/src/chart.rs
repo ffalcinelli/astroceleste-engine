@@ -18,6 +18,7 @@ use crate::houses::{houses_at_sidereal_time, HouseSystem, Houses};
 use crate::instant::UtcInstant;
 use crate::lots::{arabic_parts, Lot};
 use crate::lunar::{lunar_status, LunarStatus};
+use crate::minor_bodies::{is_minor_body, minor_body_symbol};
 use crate::planets::planets_and_sidereal_time;
 use crate::symbolic::symbolic_degree_number;
 use crate::temperament::{temperament, Temperament};
@@ -27,7 +28,7 @@ use crate::zodiac::{
 
 /// Every body a complete chart carries; missing ones are reported in
 /// `unavailable_bodies` rather than silently dropped.
-const EXPECTED_BODIES: [&str; 16] = [
+const EXPECTED_BODIES: [&str; 26] = [
     "Sun",
     "Moon",
     "Mercury",
@@ -42,6 +43,16 @@ const EXPECTED_BODIES: [&str; 16] = [
     "South Node",
     "Chiron",
     "Lilith",
+    "Ceres",
+    "Pallas",
+    "Juno",
+    "Vesta",
+    "Astraea",
+    "Eris",
+    "Sedna",
+    "Makemake",
+    "Orcus",
+    "Ixion",
     "Ascendant",
     "Midheaven",
 ];
@@ -172,9 +183,10 @@ pub struct Chart {
     pub precession_rate_arcsec_yr: f64,
     /// Orb settings in effect: the defaults merged with the request's.
     pub orb_settings: Value,
-    /// Planets, lunar points, Chiron, Lilith and the angles.
+    /// Planets, lunar points, Chiron, Lilith, the minor bodies and the angles.
     pub planets: Vec<Placement>,
-    /// Expected bodies that could not be computed (e.g. Chiron outside its table).
+    /// Expected bodies that could not be computed (e.g. Chiron or a minor body outside
+    /// its 1849-2151 table).
     pub unavailable_bodies: Vec<&'static str>,
     /// The twelve house cusps.
     pub houses: Vec<HouseCusp>,
@@ -243,7 +255,7 @@ fn symbol_of(name: &str) -> &'static str {
         "Lilith" => "⚸",
         "Ascendant" => "ASC",
         "Midheaven" => "MC",
-        _ => "",
+        _ => minor_body_symbol(name),
     }
 }
 
@@ -412,10 +424,16 @@ pub(crate) fn chart_without_hours(
         .collect();
 
     let mut aspects = natal_aspects(&points, &orbs)?;
+    // Fixed stars are judged against the planets, lunar points and angles only.
+    let star_points: Vec<Point> = points
+        .iter()
+        .copied()
+        .filter(|p| !is_minor_body(p.name))
+        .collect();
     let (stars, star_aspects) = fixed_stars(
         jd,
         &cusps,
-        &points,
+        &star_points,
         orbs.fixed_star_orb()?,
         is_sidereal.then_some(info.value),
     );

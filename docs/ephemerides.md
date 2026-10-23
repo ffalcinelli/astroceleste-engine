@@ -17,8 +17,10 @@ Download them from <https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/>, or run
 DE440 and DE441 share their dynamical model and agree closely over their common span, so a
 chart does not change noticeably when it is computed from a different kernel.
 
-Chiron comes from an embedded table covering 1849–2151. Outside it, Chiron is listed in
-`unavailable_bodies` instead of being extrapolated.
+Chiron and the minor bodies (Ceres, Pallas, Juno, Vesta, Astraea, Eris, Sedna, Makemake,
+Orcus and Ixion) come from embedded tables covering 1849–2151; the minor bodies' tables are
+sampled from JPL Horizons by `scripts/fetch_minor_bodies.py` and agree with it within 3″.
+Outside its table a body is listed in `unavailable_bodies` instead of being extrapolated.
 
 ## Loading kernels
 

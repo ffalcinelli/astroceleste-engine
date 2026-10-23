@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::aspects::Aspect;
 use crate::chart::Placement;
 use crate::dignities::{element as element_of, traditional_ruler};
+use crate::minor_bodies::is_minor_body;
 use crate::pyfloat;
 
 /// Hot, cold, wet, dry.
@@ -181,10 +182,12 @@ pub fn temperament(planets: &[Placement], aspects: &[Aspect]) -> Temperament {
     }
 
     for p in planets {
+        // The minor bodies came after the traditional assessment and take no part in it.
         if matches!(
             p.name,
             "Ascendant" | "Midheaven" | "North Node" | "South Node" | "Part of Fortune"
-        ) {
+        ) || is_minor_body(p.name)
+        {
             continue;
         }
         if p.house == 1 {
