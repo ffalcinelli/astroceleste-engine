@@ -8,14 +8,34 @@ version is 0.0.x the API is experimental and any release may break it.
 
 ## [Unreleased]
 
+## [0.0.13]
+
 ### Added
 
 - Minor bodies: Ceres, Pallas, Juno, Vesta, Astraea, Eris, Sedna, Makemake, Orcus and Ixion
   in every chart (after Lilith, before the angles), from embedded tables sampled from JPL
   Horizons for 1849-2151 (within 3″ of it; outside, `unavailable_bodies`). They form
   aspects within their own orb (default 3°, whatever the orb method) but none with each
-  other, and take no part in fixed-star conjunctions or the temperament. `MINOR_BODIES` / `is_minor_body` are public, and `MINOR_BODIES` is exported
-  to Python.
+  other, and take no part in fixed-star conjunctions or the temperament.
+  `MINOR_BODIES` / `is_minor_body` are public, and `MINOR_BODIES` is exported to Python.
+- Python: `Engine.chinese_calendar(moment)`, `excerpt_kernel(path, start, end)`,
+  `election(chinese_calendar=)`, and every exception carries the API error code in `.code`.
+  WASM: `Engine.chineseCalendar(utc)` and an `Engine.kernels` getter.
+
+### Changed
+
+- About 3× faster charts from file-backed kernels (cached kernel reads, one nutation per
+  chart); outputs are bit-identical.
+- `time_lords` returns `Result<TimeLords, EngineError>`.
+
+### Fixed
+
+- Corrupt or hostile kernels can no longer request huge buffers or overflow addresses;
+  kernels whose bodies are split into several time segments use the segment covering the
+  date.
+- Nonsensical input (latitudes beyond ±90°, non-finite numbers and orbs, impossible dates,
+  a quesited house outside 1-12) is rejected as `invalid_input` instead of computed.
+- Election searches confirm each window on exact positions before counting it.
 
 ## [0.0.12]
 
